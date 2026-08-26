@@ -1,13 +1,10 @@
 ---
 name: sprint-health-check
 description: >-
-  Valida el avance y la salud del sprint en curso en Jira y genera un informe .md
-  con estado del sprint, avance de historias, ítems estancados, faltantes de
-  estimación y asignación, puntos por persona, evolución diaria, cambios de alcance
-  en la descripción, consistencia de subtareas de QA, cumplimiento de los goals,
-  burndown, WIP, scope creep, bloqueantes y calidad. Se usa cuando se pide validar,
-  auditar o revisar el avance o la salud del sprint actual, hacer un checkpoint de
-  sprint, o detectar riesgos antes de la daily o la review.
+  Scrum Master: audita el sprint activo en Jira vía scripts REST y genera un informe
+  .md de 16 secciones (avance, estancados, estimación, alcance, QA, goals, burndown,
+  WIP, scope creep, bloqueantes, acciones). Usar para validar salud o avance del
+  sprint, checkpoint, o riesgos antes de la daily/review.
 ---
 
 # Sprint Health Check — Scrum Master Senior
@@ -28,42 +25,18 @@ explícitamente como *no disponible*.
 
 ## Requisitos previos — credenciales de Jira (una sola vez)
 
-El agente necesita leer **changelog, story points y subtareas** de Jira. Eso requiere un
-**API token personal** tuyo. No va en GitHub ni en el chat.
-
-### ¿Dónde ejecutar el script?
-
-En la **terminal integrada de Cursor**:
-
-1. Abrí Cursor con el repo `AI-Guideline` como workspace
-2. Presioná **Ctrl+`** (o menú *Terminal → New Terminal*)
-3. Asegurate de estar en la raíz del repo (donde está `README.md`)
-4. Ejecutá:
+Los scripts leen changelog, story points y subtareas vía REST con un **API token
+personal** en variables de entorno (no va en GitHub ni en el chat). Si faltan las
+credenciales, indicá al usuario ejecutar en su terminal:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "AI-Agents/sprint-health-check/scripts/set_credentials.ps1"
 ```
 
-También podés usar **Windows Terminal** o PowerShell desde el menú Inicio — el efecto
-es el mismo: guarda las variables en tu perfil de Windows para que Python las encuentre.
-
-### ¿Para qué sirve?
-
-| Sin token | Con token |
-|-----------|-----------|
-| El agente no puede conectarse a Jira | Descarga los 130+ tickets del sprint con historial completo |
-| 5 secciones del informe quedan vacías | Informe completo: estancados, alcance, QA aging, burndown, etc. |
-| Hay que pegar el token en cada chat (inseguro) | Se configura **una vez** y persiste en tu máquina |
-
-Token: https://id.atlassian.com/manage-profile/security/api-tokens
-
-Los scripts usan sólo la librería estándar de Python (3.9+). No requieren instalación.
-
-**Por qué REST y no el MCP de Jira:** el MCP disponible no devuelve changelog, story
-points ni relación padre/subtarea, y sus herramientas basadas en JQL fallan contra el
-endpoint `/rest/api/3/search` retirado por Atlassian. Sin changelog no se pueden
-calcular 5 de las secciones del informe. Ver [references/mcp-fallback.md](references/mcp-fallback.md)
-para el modo degradado.
+Guía paso a paso, motivo del acceso REST (el MCP de Jira no expone changelog ni
+subtareas) y token: [references/setup-credentials.md](references/setup-credentials.md).
+Modo degradado sin token: [references/mcp-fallback.md](references/mcp-fallback.md).
+Los scripts usan sólo la librería estándar de Python (3.9+).
 
 ## Workflow
 

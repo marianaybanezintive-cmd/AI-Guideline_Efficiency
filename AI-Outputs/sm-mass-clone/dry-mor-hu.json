@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-08-26T18:33:17.352713+00:00",
+  "dry_run": true,
+  "filters": {
+    "origin_type": "epica",
+    "origin_value": "MAGIA-350",
+    "issue_type": "Historia",
+    "issue_types_resolved": [
+      "Historia",
+      "Historia de Usuario",
+      "Story"
+    ],
+    "status": "Relevamiento",
+    "status_mode": null,
+    "statuses_resolved": [
+      "Relevamiento"
+    ],
+    "title_prefix": "QA - ",
+    "assignee": null,
+    "target_placement": "same_sprint",
+    "jql": "project = MAGIA AND (parent = MAGIA-350 OR \"Epic Link\" = MAGIA-350) AND issuetype in (\"Historia\", \"Historia de Usuario\", \"Story\") AND status = \"Relevamiento\" ORDER BY key ASC"
+  },
+  "counts": {
+    "matched": 5,
+    "candidates": 5,
+    "skipped_prefix": 0,
+    "ok": 0,
+    "fail": 0
+  },
+  "skipped_keys": [],
+  "results": [
+    {
+      "original_key": "MAGIA-577",
+      "original_summary": "Marca de morosidad del EGP en panel Confirming",
+      "clone_summary": "QA - Marca de morosidad del EGP en panel Confirming",
+      "status": "Relevamiento",
+      "issuetype": "Historia",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-578",
+      "original_summary": "Grilla grisada y bloqueada cuando el EGP está en mora",
+      "clone_summary": "QA - Grilla grisada y bloqueada cuando el EGP está en mora",
+      "status": "Relevamiento",
+      "issuetype": "Historia",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-579",
+      "original_summary": "Notificación in-app por bloqueo de mora",
+      "clone_summary": "QA - Notificación in-app por bloqueo de mora",
+      "status": "Relevamiento",
+      "issuetype": "Historia",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-580",
+      "original_summary": "ABM: configurar umbral de días de mora para bloqueo de límite",
+      "clone_summary": "QA - ABM: configurar umbral de días de mora para bloqueo de límite",
+      "status": "Relevamiento",
+      "issuetype": "Historia",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-581",
+      "original_summary": "Levantar bloqueo por mora al acreditar el pago",
+      "clone_summary": "QA - Levantar bloqueo por mora al acreditar el pago",
+      "status": "Relevamiento",
+      "issuetype": "Historia",
+      "ok": true,
+      "dry_run": true
+    }
+  ],
+  "config": {
+    "project_key": "MAGIA",
+    "board_id": 1607,
+    "jira_base_url": "https://bancoatlaspy.atlassian.net"
+  }
+}

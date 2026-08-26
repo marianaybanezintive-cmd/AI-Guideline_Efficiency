@@ -1,0 +1,96 @@
+{
+  "epics": [
+    {
+      "key": "MAGIA-350",
+      "title": "Morosidad",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1625687901/Morosidad",
+      "action": "updated"
+    },
+    {
+      "key": "MAGIA-350",
+      "title": "Morosidad — Técnica",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1625688673/Morosidad+T+cnica",
+      "action": "updated"
+    }
+  ],
+  "stories": [
+    {
+      "key": "MAGIA-577",
+      "epic": "MAGIA-350",
+      "title": "FE-Marca de morosidad del EGP en panel Confirming",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669332995/FE-Marca+de+morosidad+del+EGP+en+panel+Confirming",
+      "action": "updated",
+      "images": 0,
+      "section": "HUs"
+    },
+    {
+      "key": "MAGIA-578",
+      "epic": "MAGIA-350",
+      "title": "FE-Grilla grisada y bloqueada cuando el EGP está en mora",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669365762/FE-Grilla+grisada+y+bloqueada+cuando+el+EGP+est+en+mora",
+      "action": "updated",
+      "images": 0,
+      "section": "HUs"
+    },
+    {
+      "key": "MAGIA-579",
+      "epic": "MAGIA-350",
+      "title": "FE-Notificación in-app por bloqueo de mora",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669365781/FE-Notificaci+n+in-app+por+bloqueo+de+mora",
+      "action": "updated",
+      "images": 0,
+      "section": "HUs"
+    },
+    {
+      "key": "MAGIA-580",
+      "epic": "MAGIA-350",
+      "title": "FE-ABM: configurar umbral de días de mora para bloqueo de límite",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669627905/FE-ABM+configurar+umbral+de+d+as+de+mora+para+bloqueo+de+l+mite",
+      "action": "updated",
+      "images": 0,
+      "section": "HUs"
+    }
+  ],
+  "tasks": [
+    {
+      "key": "MAGIA-584",
+      "epic": "MAGIA-350",
+      "title": "BFF/BE-GET · Estado de mora del EGP (API Prestamos)",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1670119425/BFF+BE-GET+Estado+de+mora+del+EGP+API+Prestamos",
+      "action": "created",
+      "images": 0,
+      "section": "Tareas técnicas"
+    },
+    {
+      "key": "MAGIA-585",
+      "epic": "MAGIA-350",
+      "title": "BFF/BE-Evaluar umbral ABM y aplicar/liberar bloqueo de límite",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669365809/BFF+BE-Evaluar+umbral+ABM+y+aplicar+liberar+bloqueo+de+l+mite",
+      "action": "created",
+      "images": 0,
+      "section": "Tareas técnicas"
+    },
+    {
+      "key": "MAGIA-586",
+      "epic": "MAGIA-350",
+      "title": "BFF/BE-Consumir mensaje CORE de pago acreditado",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669955594/BFF+BE-Consumir+mensaje+CORE+de+pago+acreditado",
+      "action": "created",
+      "images": 0,
+      "section": "Tareas técnicas"
+    },
+    {
+      "key": "MAGIA-589",
+      "epic": "MAGIA-350",
+      "title": "TBD (en caso de no tener la API) - Mock contrato API Prestamos",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669955613/TBD+en+caso+de+no+tener+la+API+-+Mock+contrato+API+Prestamos",
+      "action": "created",
+      "images": 0,
+      "section": "Tareas técnicas"
+    }
+  ],
+  "deleted_qa": [],
+  "errors": [
+    "MAGIA-581: HTTP 400 POST https://bancoatlaspy.atlassian.net/wiki/rest/api/content: {\"statusCode\":400,\"data\":{\"authorized\":true,\"valid\":true,\"errors\":[],\"successful\":true},\"message\":\"com.atlassian.confluence.api.service.exceptions.api.BadRequestException: A page with this title already exists: A page already exists with the same TITLE in this space\"}"
+  ]
+}

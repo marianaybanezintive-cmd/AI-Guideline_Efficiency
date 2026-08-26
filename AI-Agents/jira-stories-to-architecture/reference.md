@@ -203,3 +203,31 @@ BFF expone contratos orientados a pantallas; BE expone contratos de dominio. Doc
 - [ ] Flujos de notificación cubren trigger, canal, estado y reintentos
 - [ ] Todos los `.mmd` tienen `.png` correspondiente
 - [ ] IDs Mermaid sin espacios ni caracteres especiales (usar `_`)
+
+## Plantilla README.md de la carpeta de salida
+
+```markdown
+# Arquitectura — {título}
+
+| Campo | Valor |
+|-------|--------|
+| **Fecha** | {YYYY-MM-DD} |
+| **Historias Jira** | PROJ-101, PROJ-102 |
+| **Generado con** | skill `jira-stories-to-architecture` |
+
+## Artefactos
+
+| Archivo | Descripción |
+|---------|-------------|
+| [00-summary.md](./00-summary.md) | Síntesis y decisiones |
+| [01-c4-context.mmd](./01-c4-context.mmd) / [.png](./01-c4-context.png) | Contexto C4 |
+| ... | ... |
+
+## Cómo regenerar PNG
+
+\`\`\`bash
+python AI-Agents/jira-stories-to-architecture/scripts/render_mermaid.py .
+\`\`\`
+```
+
+(Ejecutar el comando desde la carpeta de salida, o pasar la ruta a esa carpeta.)

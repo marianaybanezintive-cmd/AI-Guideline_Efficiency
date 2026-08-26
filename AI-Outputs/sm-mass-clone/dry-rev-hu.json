@@ -1,0 +1,56 @@
+{
+  "generated_at": "2026-08-26T18:33:25.141197+00:00",
+  "dry_run": true,
+  "filters": {
+    "origin_type": "epica",
+    "origin_value": "MAGIA-547",
+    "issue_type": "Historia",
+    "issue_types_resolved": [
+      "Historia",
+      "Historia de Usuario",
+      "Story"
+    ],
+    "status": "Relevamiento",
+    "status_mode": null,
+    "statuses_resolved": [
+      "Relevamiento"
+    ],
+    "title_prefix": "QA - ",
+    "assignee": null,
+    "target_placement": "same_sprint",
+    "jql": "project = MAGIA AND (parent = MAGIA-547 OR \"Epic Link\" = MAGIA-547) AND issuetype in (\"Historia\", \"Historia de Usuario\", \"Story\") AND status = \"Relevamiento\" ORDER BY key ASC"
+  },
+  "counts": {
+    "matched": 2,
+    "candidates": 2,
+    "skipped_prefix": 0,
+    "ok": 0,
+    "fail": 0
+  },
+  "skipped_keys": [],
+  "results": [
+    {
+      "original_key": "MAGIA-582",
+      "original_summary": "Mostrar estados de reversión en grilla Confirming (FNV)",
+      "clone_summary": "QA - Mostrar estados de reversión en grilla Confirming (FNV)",
+      "status": "Relevamiento",
+      "issuetype": "Historia",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-583",
+      "original_summary": "Filtro Estado incluye estados de reversión",
+      "clone_summary": "QA - Filtro Estado incluye estados de reversión",
+      "status": "Relevamiento",
+      "issuetype": "Historia",
+      "ok": true,
+      "dry_run": true
+    }
+  ],
+  "config": {
+    "project_key": "MAGIA",
+    "board_id": 1607,
+    "jira_base_url": "https://bancoatlaspy.atlassian.net"
+  }
+}

@@ -1,11 +1,9 @@
 ---
 name: po-architect-agent
 description: >-
-  Agente dual Senior Product Owner y Arquitecto de Software SR especializado en APIs REST.
-  Lee historias de usuario desde Jira (MCP user-jira) y genera diagramas de arquitectura,
-  modelos de base de datos, esquemas FE/BFF/BE, diagramas de secuencia y user flows en
-  Mermaid y PNG. Usar cuando el usuario pida hablar con Alex, arquitectura desde Jira,
-  diagramas desde historias de usuario, o paquete de arquitectura completo.
+  Alex: agente dual PO senior + Arquitecto SR con menú interactivo y persona; delega
+  la generación de arquitectura al skill jira-stories-to-architecture. Usar cuando
+  pidan hablar con Alex o un paquete de arquitectura desde historias de usuario.
 disable-model-invocation: true
 ---
 

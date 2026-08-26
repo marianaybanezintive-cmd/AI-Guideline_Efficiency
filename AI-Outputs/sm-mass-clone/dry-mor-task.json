@@ -1,0 +1,73 @@
+{
+  "generated_at": "2026-08-26T18:33:23.941311+00:00",
+  "dry_run": true,
+  "filters": {
+    "origin_type": "epica",
+    "origin_value": "MAGIA-350",
+    "issue_type": "Tarea",
+    "issue_types_resolved": [
+      "Tarea",
+      "Task"
+    ],
+    "status": "Relevamiento",
+    "status_mode": null,
+    "statuses_resolved": [
+      "Relevamiento"
+    ],
+    "title_prefix": "QA - ",
+    "assignee": null,
+    "target_placement": "same_sprint",
+    "jql": "project = MAGIA AND (parent = MAGIA-350 OR \"Epic Link\" = MAGIA-350) AND issuetype in (\"Tarea\", \"Task\") AND status = \"Relevamiento\" ORDER BY key ASC"
+  },
+  "counts": {
+    "matched": 4,
+    "candidates": 4,
+    "skipped_prefix": 0,
+    "ok": 0,
+    "fail": 0
+  },
+  "skipped_keys": [],
+  "results": [
+    {
+      "original_key": "MAGIA-584",
+      "original_summary": "GET · Estado de mora del EGP (API Prestamos)",
+      "clone_summary": "QA - GET · Estado de mora del EGP (API Prestamos)",
+      "status": "Relevamiento",
+      "issuetype": "Tarea",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-585",
+      "original_summary": "Evaluar umbral ABM y aplicar/liberar bloqueo de límite",
+      "clone_summary": "QA - Evaluar umbral ABM y aplicar/liberar bloqueo de límite",
+      "status": "Relevamiento",
+      "issuetype": "Tarea",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-586",
+      "original_summary": "Consumir mensaje CORE de pago acreditado",
+      "clone_summary": "QA - Consumir mensaje CORE de pago acreditado",
+      "status": "Relevamiento",
+      "issuetype": "Tarea",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-589",
+      "original_summary": "TBD (en caso de no tener la API) - Mock contrato API Prestamos",
+      "clone_summary": "QA - TBD (en caso de no tener la API) - Mock contrato API Prestamos",
+      "status": "Relevamiento",
+      "issuetype": "Tarea",
+      "ok": true,
+      "dry_run": true
+    }
+  ],
+  "config": {
+    "project_key": "MAGIA",
+    "board_id": 1607,
+    "jira_base_url": "https://bancoatlaspy.atlassian.net"
+  }
+}

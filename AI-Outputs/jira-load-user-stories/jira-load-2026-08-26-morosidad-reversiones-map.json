@@ -1,0 +1,134 @@
+{
+  "results": [
+    {
+      "temp_id": "MOR-01",
+      "summary": "Marca de morosidad del EGP en panel Confirming",
+      "issue_type": "Historia",
+      "epic_key": "MAGIA-350",
+      "description": "Como usuario del Portal Confirming\nquiero ver en el panel del ente si la EGP está Al día o En mora (y los días de mora)\npara conocer el riesgo crediticio antes de operar\n```\n\n#### Valor de negocio\nHace visible en Confirming la condición de mora que hoy solo vive en CORE/API Prestamos, alineando la decisión operativa con el estado real del préstamo.\n\n#### Escenarios fuente\n> Mural: al entrar a Confirming, API Prestamos responde “al día” o “en mora”. Sticky: API CORE debe informar mora; TBD API Prestamos / API Límites → resuelto S-01 = API Prestamos.\n\n```text\n\nAl día → grilla habilitada\nEn mora → grilla bloqueada\nMarca de morosidad del cliente en Confirming (gap POC)\n```\n\n#### Criterios de aceptación\n1. **[Feliz]** Al seleccionar un ente EGP, el panel muestra un indicador visual de estado de mora: `Al día` o `En mora`.\n2. **[Feliz]** Si está `En mora`, se muestran los **días de mora** devueltos por API Prestamos.\n3. **[Alternativo]** Si está `Al día`, no se muestra alerta de riesgo; el indicador es neutro/positivo.\n4. **[Error]** Si falla la consulta, se muestra MSG-M04: \"No se pudo obtener el estado de morosidad. No se asume que el ente está al día.\" y **no** se asume `Al día`.\n5. **[Validación]** El indicador es distinguible de un vistazo (badge/color) respecto del límite crediticio.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Marca de morosidad del EGP\n  Antecedentes:\n    Dado que estoy en la pantalla \"Confirming\"\n    Y opero para el ente \"Cervepar (EGP)\"\n\n  Escenario: EGP al día\n    Dado que API Prestamos responde estado \"Al día\"\n    Cuando se carga el panel del ente\n    Entonces veo el indicador \"Al día\"\n    Y no veo alerta de mora\n\n  Escenario: EGP en mora\n    Dado que API Prestamos responde estado \"En mora\" con 12 días\n    Cuando se carga el panel del ente\n    Entonces veo el indicador \"En mora\"\n    Y veo \"12\" días de mora\n\n  Escenario: Error de consulta\n    Dado que API Prestamos no responde\n    Cuando se carga el panel del ente\n    Entonces veo el mensaje MSG-M04: \"No se pudo obtener el estado de morosidad. No se asume que el ente está al día.\"\n```\n\n#### Fuera de alcance\n- Bloqueo de grilla (MOR-02).\n- Cálculo de intereses moratorios/punitorios (CORE).\n\n#### Notas / preguntas abiertas\n- Propuesta UX POC: badge junto a razón social / límite crediticio del panel rosa.\n\n---",
+      "issue_key": "MAGIA-577",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "MOR-02",
+      "summary": "Grilla grisada y bloqueada cuando el EGP está en mora",
+      "issue_type": "Historia",
+      "epic_key": "MAGIA-350",
+      "description": "Como usuario del Portal Confirming\nquiero que, si la EGP está en mora, la grilla se vea grisada y sin acciones operables\npara evitar nuevas operaciones sobre un ente con préstamo en mora\n```\n\n#### Valor de negocio\nTraduce el estado de mora en contención operativa inmediata: se ve el portafolio pero no se puede cargar, habilitar, bloquear ni simular.\n\n#### Escenarios fuente\n```text\n\nAl día → grilla habilitada\nEn mora → grilla bloqueada\nS-02: ve la grilla y las facturas grisada y bloqueada\n```\n\n#### Criterios de aceptación\n1. **[Feliz]** Con EGP `En mora`, la grilla permanece **visible** con las facturas **grisadas** y no seleccionables para acciones.\n2. **[Feliz]** Quedan deshabilitados: `+ Cargar Factura`, `Habilitar`, `Bloquear`, `Simular` y acciones de fila operables (editar fecha, aprobar, etc.).\n3. **[Feliz]** Se muestra el banner MSG-M01: \"El ente seleccionado está en mora. La grilla de facturas está temporalmente bloqueada.\"\n4. **[Alternativo]** Con EGP `Al día`, la grilla y acciones vuelven al comportamiento normal por permisos/estado de factura.\n5. **[Validación]** El usuario puede cambiar de pestaña (FV/FNV/FNO) y filtrar en modo consulta; no puede mutar datos.\n6. **[Error]** Si el estado de mora es desconocido (fallo API), se aplica el mismo bloqueo preventivo que `En mora` hasta resolver (alineado a MSG-M04 / no asumir al día).\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Bloqueo de grilla por mora\n  Antecedentes:\n    Dado que estoy en \"Confirming\" operando para \"Cervepar\"\n\n  Escenario: Grilla grisada en mora\n    Dado que el EGP está \"En mora\"\n    Cuando se renderiza la grilla\n    Entonces las filas se ven grisadas\n    Y el botón \"+ Cargar Factura\" está deshabilitado\n    Y veo el mensaje MSG-M01: \"El ente seleccionado está en mora. La grilla de facturas está temporalmente bloqueada.\"\n\n  Escenario: Grilla operable al día\n    Dado que el EGP está \"Al día\"\n    Cuando se renderiza la grilla\n    Entonces las acciones globales se habilitan según permisos y selección\n```\n\n#### Fuera de alcance\n- Bloqueo automático del límite crediticio (MOR-HT-02 / MOR-03).\n- Cambio de estado de facturas a Mora (desestimado).\n\n#### Notas / preguntas abiertas\n- —\n---",
+      "issue_key": "MAGIA-578",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "MOR-03",
+      "summary": "Notificación in-app por bloqueo de mora",
+      "issue_type": "Historia",
+      "epic_key": "MAGIA-350",
+      "description": "Como usuario del Portal Confirming\nquiero recibir una notificación en la plataforma cuando se bloquea el límite por mora\npara enterarme del bloqueo sin salir del portal\n```\n\n#### Valor de negocio\nCierra el circuito “bloqueo automático + aviso” acordado en Mural, solo dentro de la plataforma (sin email).\n\n#### Escenarios fuente\n```text\n\nBloqueo automático del límite de crédito + mostrar una notificación al usuario en la plataforma\nS-03: solo en la plataforma\n```\n\n#### Criterios de aceptación\n1. **[Feliz]** Cuando el sistema aplica bloqueo de límite por mora, el usuario del ente ve una notificación in-app con MSG-M05: \"Se bloqueó el límite crediticio del ente por mora.\"\n2. **[Feliz]** La notificación permite navegar o enfocar Confirming / panel del ente.\n3. **[Alternativo]** Si el usuario ya está en Confirming, además se muestra/actualiza MSG-M02 con días y umbral.\n4. **[Validación]** No se envía email ni canal externo en esta entrega (RN-M08).\n5. **[Error]** Si falla el canal in-app, el bloqueo de límite igualmente queda aplicado; el error se registra para soporte.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Notificación in-app de mora\n  Escenario: Aviso al bloquear límite\n    Dado que el umbral ABM es 5 días\n    Y API Prestamos informa 7 días de mora\n    Cuando el sistema aplica el bloqueo de límite\n    Entonces veo la notificación in-app MSG-M05: \"Se bloqueó el límite crediticio del ente por mora.\"\n    Y no se dispara un correo electrónico\n```\n\n#### Fuera de alcance\n- Email / SMS / push externo.\n- Configuración de agrupadores ABM de notificaciones por email.\n\n#### Notas / preguntas abiertas\n- —\n---",
+      "issue_key": "MAGIA-579",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "MOR-04",
+      "summary": "ABM: configurar umbral de días de mora para bloqueo de límite",
+      "issue_type": "Historia",
+      "epic_key": "MAGIA-350",
+      "description": "Como administrador del Banco\nquiero configurar en el ABM cuántos días de mora disparan el bloqueo del límite\npara adaptar la política de riesgo sin cambiar código\n```\n\n#### Valor de negocio\nParametriza la política de contención; el CORE/API informa días y la plataforma decide cuándo bloquear.\n\n#### Escenarios fuente\n```text\n\nDefinir en un ABM la cantidad de días de mora necesarios para bloquear el límite de crédito\nAPI CORE debe devolver la cantidad de días de mora\n```\n\n#### Criterios de aceptación\n1. **[Feliz]** En ABM existe un parámetro numérico “Días de mora para bloqueo de límite” (entero ≥ 0).\n2. **[Feliz]** Al guardar un valor válido se muestra MSG-A01: \"Umbral de días de mora actualizado correctamente.\"\n3. **[Validación]** Valores no enteros o negativos muestran MSG-A02: \"Ingresá un número entero de días mayor o igual a 0.\" y no se persisten.\n4. **[Alternativo]** El valor vigente es el que usa MOR-HT-02 en la evaluación.\n5. **[Feliz]** Solo roles Banco con permiso ABM pueden editar el parámetro.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Umbral de mora en ABM\n  Escenario: Guardar umbral válido\n    Dado que soy administrador Banco en Gestión ABM\n    Cuando configuro el umbral en 5 días y guardo\n    Entonces veo el mensaje MSG-A01: \"Umbral de días de mora actualizado correctamente.\"\n    Y el umbral vigente es 5\n\n  Escenario: Umbral inválido\n    Cuando intento guardar \"-1\"\n    Entonces veo el mensaje MSG-A02: \"Ingresá un número entero de días mayor o igual a 0.\"\n```\n\n#### Fuera de alcance\n- Umbral distinto por EGP (global en esta entrega).\n- Cálculo de intereses de mora.\n\n#### Notas / preguntas abiertas\n- Valor default sugerido: a definir con Riesgos (propuesta PO: 5 días hábiles si no hay input).\n\n---",
+      "issue_key": "MAGIA-580",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "MOR-05",
+      "summary": "Levantar bloqueo por mora al acreditar el pago",
+      "issue_type": "Historia",
+      "epic_key": "MAGIA-350",
+      "description": "Como usuario del Portal Confirming\nquiero que, al acreditarse el pago, se levante el bloqueo por mora y se actualice la pantalla\npara volver a operar cuando el préstamo regulariza\n```\n\n#### Valor de negocio\nCierra el ciclo de mora: el desbloqueo no depende de un trámite manual si CORE ya acreditó el pago.\n\n#### Escenarios fuente\n```text\n\nReversión de bloqueos por mora cuando se acredita el pago\nMensaje de API CORE → quitar bloqueo del límite → refresh auto o manual\n```\n\n#### Criterios de aceptación\n1. **[Feliz]** Tras el evento de pago acreditado, el límite deja de estar bloqueado por mora y el estado del ente pasa a `Al día` cuando API Prestamos lo confirme.\n2. **[Feliz]** La UI se actualiza (refresh automático o acción de refresco) y se muestra MSG-M03: \"Se levantó el bloqueo por mora: el pago fue acreditado. El límite vuelve a estar disponible.\"\n3. **[Feliz]** La grilla deja de estar grisada y las acciones vuelven según permisos (MOR-02 inverso).\n4. **[Alternativo]** Si el usuario fuerza refresh manual antes del evento, se reconsulta API Prestamos y se refleja el estado vigente.\n5. **[Error]** Si el desbloqueo de límite falla, se mantiene el bloqueo y se registra error; no se muestra MSG-M03.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Desbloqueo por pago acreditado\n  Escenario: Levantamiento exitoso\n    Dado que el EGP está \"En mora\" con grilla bloqueada\n    Cuando CORE informa pago acreditado y API Prestamos pasa a \"Al día\"\n    Entonces veo el mensaje MSG-M03: \"Se levantó el bloqueo por mora: el pago fue acreditado. El límite vuelve a estar disponible.\"\n    Y la grilla deja de estar grisada\n```\n\n#### Fuera de alcance\n- Contabilidad de mora / factura de mora (CORE).\n- Reversión de operación de adelanto (épica REV).\n\n#### Notas / preguntas abiertas\n- —\n---",
+      "issue_key": "MAGIA-581",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "REV-01",
+      "summary": "Mostrar estados de reversión en grilla Confirming (FNV)",
+      "issue_type": "Historia",
+      "epic_key": "MAGIA-547",
+      "description": "Como usuario del Portal Confirming\nquiero ver en Facturas No Vigentes los estados de reversión de una factura\npara seguir el proceso aunque aún no exista flujo de usuario para revertir\n```\n\n#### Valor de negocio\nDa trazabilidad visual del proceso de reversión (skill/manual) sin exponer acciones peligrosas en la UI.\n\n#### Escenarios fuente\n```text\n\nEstados: Pendiente de Reversión · Pendiente aprobación Supervisor · Habilitada · Bloqueada\nSin flujo de usuario para revertir por ahora\nS-06: FNV — no deberían volver a ser operativas\n```\n\n#### Criterios de aceptación\n1. **[Feliz]** Las facturas en `Pendiente de Reversión` o `Pendiente aprobación Supervisor` aparecen en la pestaña **Facturas No Vigentes (FNV)** con badge de estado.\n2. **[Feliz]** Tras aprobación same-day o de supervisor, el estado final `Habilitada` o `Bloqueada` permanece visible según reglas de pestaña vigentes (FNV si no operables).\n3. **[Feliz]** En filas de reversión no hay acciones de fila operables; tooltip/ayuda MSG-R01: \"Esta factura está en proceso de reversión. Solo consulta; no hay acciones disponibles desde Confirming.\"\n4. **[Validación]** Una factura en reversión **no** aparece en Facturas Vigentes como operable.\n5. **[Alternativo]** El detalle de la fila muestra si el caso es same-day o a pasado cuando el BE lo informe.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Estados de reversión en FNV\n  Antecedentes:\n    Dado que estoy en \"Confirming\"\n\n  Escenario: Ver pendiente de reversión\n    Dado una factura en estado \"Pendiente de Reversión\"\n    Cuando abro la pestaña \"Facturas No Vigentes\"\n    Entonces veo la factura con badge \"Pendiente de Reversión\"\n    Y no veo botones de acción operables\n    Y veo el mensaje MSG-R01: \"Esta factura está en proceso de reversión. Solo consulta; no hay acciones disponibles desde Confirming.\"\n\n  Escenario: No aparece en FV operable\n    Cuando abro \"Facturas Vigentes\"\n    Entonces no veo esa factura como operable para Simular/Habilitar\n```\n\n#### Fuera de alcance\n- Botones Operador Aprueba / Supervisor Aprueba-Rechaza en UI.\n- Inicio de reversión por EGP desde Confirming.\n\n#### Notas / preguntas abiertas\n- POC: agregar badges nuevos al catálogo de estados.\n\n---",
+      "issue_key": "MAGIA-582",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "REV-02",
+      "summary": "Filtro Estado incluye estados de reversión",
+      "issue_type": "Historia",
+      "epic_key": "MAGIA-547",
+      "description": "Como usuario del Portal Confirming\nquiero filtrar la grilla por estados de reversión\npara ubicar rápido facturas en ese proceso\n```\n\n#### Valor de negocio\nReduce tiempo de búsqueda operativa cuando el volumen de FNV crece.\n\n#### Escenarios fuente\n```text\n\nPOC: filtro Estado — Todos los Estados / Pendiente / Habilitada / Bloqueada / …\nAgregar: Pendiente de Reversión · Pendiente aprobación Supervisor\n```\n\n#### Criterios de aceptación\n1. **[Feliz]** El combo Estado incluye `Pendiente de Reversión` y `Pendiente aprobación Supervisor`.\n2. **[Feliz]** Al elegir uno, la grilla (en FNV) muestra solo facturas en ese estado.\n3. **[Alternativo]** “Todos los Estados” incluye también los nuevos.\n4. **[Validación]** Los labels coinciden exactamente con los badges de REV-01.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Filtro por estado de reversión\n  Escenario: Filtrar pendiente de reversión\n    Dado que estoy en FNV\n    Cuando selecciono estado \"Pendiente de Reversión\"\n    Entonces solo veo facturas con ese estado\n```\n\n#### Fuera de alcance\n- Filtro por same-day vs a pasado (Could).\n\n#### Notas / preguntas abiertas\n- —\n---\n\n## 7. Historias técnicas — Endpoints BFF / BE (enablers)",
+      "issue_key": "MAGIA-583",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "MOR-HT-01",
+      "summary": "GET · Estado de mora del EGP (API Prestamos)",
+      "issue_type": "Task",
+      "epic_key": "MAGIA-350",
+      "description": "Exponer al FE el estado canónico de mora (`Al día` | `En mora`) y `diasMora` desde **API Prestamos**.\n\n#### Criterios de aceptación\n1. Respuesta 200 con `{ \"estado\": \"AL_DIA\"|\"EN_MORA\", \"diasMora\": number, \"fuente\": \"API_PRESTAMOS\" }`.\n2. Si API Prestamos no está disponible → 503/424 de negocio; **no** se inventa `AL_DIA`.\n3. El BFF no calcula mora; solo adapta el contrato de Prestamos.\n4. Autenticación/autorización: solo usuarios con acceso al ente.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: GET morosidad EGP\n  Escenario: En mora\n    Cuando consulto GET /v1/entes/cervepar/morosidad\n    Entonces recibo 200 con estado \"EN_MORA\" y diasMora >= 0\n```\n\n#### Errores esperados\n| Código HTTP | Código negocio | Cuándo |\n|-------------|----------------|--------|\n| 200 | — | Consulta OK |\n| 404 | ENTE_NO_ENCONTRADO | enteId inválido |\n| 503 | PRESTAMOS_NO_DISPONIBLE | API Prestamos caída |\n| 424 | FUENTE_MORA_NO_DISPONIBLE | Sin dato de mora |\n\n---",
+      "issue_key": "MAGIA-584",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "MOR-HT-02",
+      "summary": "Evaluar umbral ABM y aplicar/liberar bloqueo de límite",
+      "issue_type": "Task",
+      "epic_key": "MAGIA-350",
+      "description": "Comparar `diasMora` vs umbral ABM y persistir bloqueo/liberación del límite crediticio por mora.\n\n#### Criterios de aceptación\n1. Si `diasMora >= umbral` → `limiteBloqueadoPorMora = true` y dispara notificación in-app (MOR-03).\n2. Si `diasMora < umbral` o estado `AL_DIA` → no aplica / libera bloqueo por mora (sin pisar otros bloqueos).\n3. Idempotencia: reevaluar no duplica notificaciones si el estado no cambia.\n4. Auditoría: quién/qué/cuándo aplicó el bloqueo.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Evaluación umbral mora\n  Escenario: Bloqueo por umbral\n    Dado umbral 5 y diasMora 7\n    Cuando ejecuto evaluarBloqueoMora\n    Entonces limiteBloqueadoPorMora es true\n```\n\n#### Errores esperados\n| Código HTTP | Código negocio | Cuándo |\n|-------------|----------------|--------|\n| 200 | — | Evaluación OK |\n| 409 | BLOQUEO_OTRA_CAUSA | Hay bloqueo no-mora que debe preservarse |\n| 503 | PRESTAMOS_NO_DISPONIBLE | No se pudo evaluar |\n\n---",
+      "issue_key": "MAGIA-585",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "MOR-HT-03",
+      "summary": "Consumir mensaje CORE de pago acreditado",
+      "issue_type": "Task",
+      "epic_key": "MAGIA-350",
+      "description": "Al recibir acreditación de pago desde CORE, reconsultar API Prestamos y liberar bloqueo de mora si corresponde.\n\n#### Criterios de aceptación\n1. Mensaje CORE identificado por ente/préstamo/operación.\n2. Tras procesar: llama evaluación MOR-HT-02 / refresco Prestamos.\n3. Si Prestamos ya `AL_DIA` → libera `limiteBloqueadoPorMora` y emite señal UI (MSG-M03).\n4. Reintentos idempotentes ante duplicados del mensaje.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Evento pago acreditado\n  Escenario: Liberación\n    Dado un ente bloqueado por mora\n    Cuando llega mensaje CORE pagoAcreditado\n    Y Prestamos responde AL_DIA\n    Entonces limiteBloqueadoPorMora es false\n```\n\n#### Errores esperados\n| Código HTTP | Código negocio | Cuándo |\n|-------------|----------------|--------|\n| 202 | — | Evento aceptado |\n| 404 | PRESTAMO_NO_ENCONTRADO | Referencia CORE desconocida |\n| 409 | ESTADO_INCONSISTENTE | Prestamos sigue EN_MORA tras pago |\n\n---",
+      "issue_key": "MAGIA-586",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "REV-HT-01",
+      "summary": "Máquina de estados BE de reversión",
+      "issue_type": "Task",
+      "epic_key": "MAGIA-547",
+      "description": "Incorporar estados y transiciones del diagrama Mural, con corte same-day 17:00 PY.\n\n#### Criterios de aceptación\n1. Estados nuevos: `Pendiente de Reversión`, `Pendiente aprobación Supervisor`.\n2. Transiciones:\n   - Inicio skill → `Pendiente de Reversión` (solo si no desembolsado y no pagado).\n   - Same-day (≤17:00 PY) + Operador aprueba → `Habilitada`.\n   - A pasado + Operador aprueba → `Pendiente aprobación Supervisor`.\n   - Supervisor aprueba → `Habilitada`; Supervisor rechaza → `Bloqueada`.\n3. Facturas en estos estados se clasifican en **FNV** (RN-R04).\n4. BE es fuente de verdad; BFF solo proyecta.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Máquina de estados reversión\n  Escenario: Same-day a Habilitada\n    Dado un adelanto no desembolsado iniciado a las 10:00 PY\n    Cuando el Operador aprueba la reversión el mismo día antes de las 17:00\n    Entonces el estado es \"Habilitada\"\n```\n\n#### Errores esperados\n| Código HTTP | Código negocio | Cuándo |\n|-------------|----------------|--------|\n| 409 | TRANSICION_INVALIDA | Transición no permitida |\n| 422 | YA_DESEMBOLSADO | No cumple RN-R01 |\n| 403 | ROL_INSUFICIENTE | Actor sin rol Operador/Supervisor |\n\n---",
+      "issue_key": "MAGIA-587",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "REV-HT-02",
+      "summary": "Cursor skill para revertir manualmente",
+      "issue_type": "Task",
+      "epic_key": "MAGIA-547",
+      "description": "Entregar un **Cursor skill** que permita a operaciones del banco iniciar y avanzar la reversión manual (mismo día / a pasado) según RN-R02/R03, sin pantalla de usuario en Confirming.\n\n#### Criterios de aceptación\n1. El skill pide: clave de factura/adelanto, motivo, y valida RN-R01.\n2. Clasifica same-day vs a pasado con corte **17:00 PY**.\n3. Ejecuta transiciones vía API BE autenticada (Operador / Supervisor según paso).\n4. Deja trazabilidad (quién, cuándo, same-day/a pasado) y la factura visible en FNV (REV-01).\n5. No crea botones ni flujo en la UI Confirming.\n6. Documenta en el skill: precondiciones, roles, mensajes de error y ejemplos de invocación.\n\n#### Escenarios BDD\n```gherkin\n\nCaracterística: Cursor skill de reversión manual\n  Escenario: Inicio same-day\n    Dado un adelanto no desembolsado creado hoy a las 11:00 PY\n    Cuando invoco el skill confirming-revertir-adelanto como Operador\n    Entonces la factura queda \"Pendiente de Reversión\"\n    Y aparece en FNV\n```\n\n#### Errores esperados\n| Código HTTP | Código negocio | Cuándo |\n|-------------|----------------|--------|\n| 422 | YA_DESEMBOLSADO | Adelanto ya desembolsado/pagado |\n| 403 | ROL_INSUFICIENTE | Usuario sin rol adecuado |\n| 409 | TRANSICION_INVALIDA | Paso de aprobación incorrecto |\n\n---\n\n## 8. Tareas técnicas / habilitadores\n\n| ID | Key | Tarea | Objetivo | Definition of Done |\n|----|-----|-------|----------|--------------------|\n\n---\n\n## 9. Spikes y decisiones pendientes (columna DUDAS)\n\n| ID | Origen | Pregunta abierta | Impacto si no se resuelve | Propuesta del PO | Respuesta *(post HITL)* |\n|----|--------|------------------|---------------------------|------------------|-------------------------|\n\n---\n\n## 10. Recomendaciones del PO — historias faltantes",
+      "issue_key": "MAGIA-588",
+      "fase1": "ok",
+      "error": null
+    },
+    {
+      "temp_id": "T-02",
+      "summary": "Mock contrato API Prestamos",
+      "issue_type": "Task",
+      "epic_key": "MAGIA-350",
+      "description": "Objetivo técnico: JSON de ejemplo alineado a MOR-HT-01 para FE/BFF/POC.\n\nCriterios de aceptación:\n1. Ejemplos AL_DIA y EN_MORA con diasMora\n2. Campos documentados (estado, diasMora, fuente)\n3. Publicado en repo o AI-Outputs\n\nNotas / preguntas abiertas:\n- Sustituir por contrato real Banco cuando exista",
+      "issue_key": "MAGIA-589",
+      "fase1": "ok",
+      "error": null
+    }
+  ]
+}

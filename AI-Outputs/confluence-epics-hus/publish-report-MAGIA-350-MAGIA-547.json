@@ -1,0 +1,94 @@
+{
+  "epics": [
+    {
+      "key": "MAGIA-350",
+      "title": "Morosidad",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1625687901/Morosidad",
+      "action": "updated"
+    },
+    {
+      "key": "MAGIA-350",
+      "title": "Morosidad — Técnica",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1625688673/Morosidad+T+cnica",
+      "action": "updated"
+    },
+    {
+      "key": "MAGIA-547",
+      "title": "Reversiones — Técnica",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669693441/Reversiones+T+cnica",
+      "action": "created"
+    },
+    {
+      "key": "MAGIA-547",
+      "title": "Reversiones",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669431297/Reversiones",
+      "action": "updated"
+    },
+    {
+      "key": "MAGIA-547",
+      "title": "Reversiones — Técnica",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669693441/Reversiones+T+cnica",
+      "action": "updated"
+    }
+  ],
+  "stories": [
+    {
+      "key": "MAGIA-577",
+      "epic": "MAGIA-350",
+      "title": "FE-Marca de morosidad del EGP en panel Confirming",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669332995/FE-Marca+de+morosidad+del+EGP+en+panel+Confirming",
+      "action": "created",
+      "images": 0
+    },
+    {
+      "key": "MAGIA-578",
+      "epic": "MAGIA-350",
+      "title": "FE-Grilla grisada y bloqueada cuando el EGP está en mora",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669365762/FE-Grilla+grisada+y+bloqueada+cuando+el+EGP+est+en+mora",
+      "action": "created",
+      "images": 0
+    },
+    {
+      "key": "MAGIA-579",
+      "epic": "MAGIA-350",
+      "title": "FE-Notificación in-app por bloqueo de mora",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669365781/FE-Notificaci+n+in-app+por+bloqueo+de+mora",
+      "action": "created",
+      "images": 0
+    },
+    {
+      "key": "MAGIA-580",
+      "epic": "MAGIA-350",
+      "title": "FE-ABM: configurar umbral de días de mora para bloqueo de límite",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669627905/FE-ABM+configurar+umbral+de+d+as+de+mora+para+bloqueo+de+l+mite",
+      "action": "created",
+      "images": 0
+    },
+    {
+      "key": "MAGIA-581",
+      "epic": "MAGIA-350",
+      "title": "BFF/BE-Levantar bloqueo por mora al acreditar el pago",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669660673/BFF+BE-Levantar+bloqueo+por+mora+al+acreditar+el+pago",
+      "action": "created",
+      "images": 0
+    },
+    {
+      "key": "MAGIA-582",
+      "epic": "MAGIA-547",
+      "title": "FE-Mostrar estados de reversión en grilla Confirming (FNV)",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669693459/FE-Mostrar+estados+de+reversi+n+en+grilla+Confirming+FNV",
+      "action": "created",
+      "images": 0
+    },
+    {
+      "key": "MAGIA-583",
+      "epic": "MAGIA-547",
+      "title": "FE-Filtro Estado incluye estados de reversión",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669595144/FE-Filtro+Estado+incluye+estados+de+reversi+n",
+      "action": "created",
+      "images": 0
+    }
+  ],
+  "deleted_qa": [],
+  "errors": []
+}

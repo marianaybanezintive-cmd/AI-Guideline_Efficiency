@@ -1,11 +1,9 @@
 ---
 name: jira-stories-to-architecture
 description: >-
-  Lee historias de usuario desde Jira (MCP user-jira) o texto manual y genera paquete
-  completo de arquitectura: diagramas C4, componentes FE/BFF/BE, modelo ER, APIs REST,
-  secuencias y user flows de entes, usuarios y notificaciones en Mermaid (.mmd) y PNG.
-  Usar cuando el usuario pida arquitectura desde Jira, diagramas desde HU, esquema BFF/BE/FE,
-  o invoque al agente po-architect-agent con claves de issue.
+  Lee historias desde Jira (MCP user-jira) o texto y genera paquete de arquitectura:
+  C4, componentes FE/BFF/BE, modelo ER, APIs REST, secuencias y user flows en Mermaid
+  (.mmd) + PNG. Usar cuando pidan arquitectura o diagramas desde historias o Jira.
 disable-model-invocation: true
 ---
 
@@ -129,33 +127,11 @@ Si se invoca el skill desde otra ubicación, usar `{skill-root}/scripts/render_m
 
 Si `render_mermaid.py` falla (sin Node/npx), informa al usuario e incluye en README instrucciones de instalación; **no omitas los `.mmd`**.
 
-### README.md — plantilla
+### README.md de salida
 
-```markdown
-# Arquitectura — {título}
-
-| Campo | Valor |
-|-------|--------|
-| **Fecha** | {YYYY-MM-DD} |
-| **Historias Jira** | PROJ-101, PROJ-102 |
-| **Generado con** | skill `jira-stories-to-architecture` |
-
-## Artefactos
-
-| Archivo | Descripción |
-|---------|-------------|
-| [00-summary.md](./00-summary.md) | Síntesis y decisiones |
-| [01-c4-context.mmd](./01-c4-context.mmd) / [.png](./01-c4-context.png) | Contexto C4 |
-| ... | ... |
-
-## Cómo regenerar PNG
-
-\`\`\`bash
-python AI-Agents/jira-stories-to-architecture/scripts/render_mermaid.py .
-\`\`\`
-```
-
-(Ejecutar el comando desde la carpeta de salida, o pasar la ruta absoluta/relativa a esa carpeta.)
+Usar la plantilla «README.md de la carpeta de salida» de [reference.md](reference.md):
+tabla de metadatos (fecha, historias Jira, skill), tabla índice de artefactos con
+enlaces `.mmd`/`.png`, y comando para regenerar PNG.
 
 ### 13-traceability.md
 

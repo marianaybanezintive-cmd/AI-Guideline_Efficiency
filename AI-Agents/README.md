@@ -9,6 +9,14 @@ Cada subcarpeta es un **agente** usable desde Cursor (skill) o desde la línea d
 | [sprint-health-check](sprint-health-check/) | Validación de salud del sprint en curso (Jira) |
 | [po-expert-user-stories](po-expert-user-stories/) | Product Owner: épicas y documentos de negocio → historias detalladas (MD + CSV) |
 | [jira-load-user-stories](jira-load-user-stories/) | SM/PO: carga en Jira las historias del MD de po-expert (tras validación manual) |
+| [jira-stories-to-architecture](jira-stories-to-architecture/) | Historias Jira → paquete de arquitectura (C4, ER, APIs, Mermaid + PNG) |
+| [po-architect-agent](po-architect-agent/) | Alex: persona PO + Arquitecto SR con menú; delega en jira-stories-to-architecture |
+| [sm-mass-clone](sm-mass-clone/) | Clonado masivo de issues Jira (épica/sprint/backlog) con dry-run y reporte |
+| [agent-efficiency-reviewer](agent-efficiency-reviewer/) | Audita agentes nuevos/modificados contra los presupuestos de tokens ([guía](../docs/agent-token-efficiency.md)) |
+
+**Regla del repo:** todo agente nuevo o modificado pasa por `agent-efficiency-reviewer`
+antes del commit (presupuestos en [docs/agent-token-efficiency.md](../docs/agent-token-efficiency.md);
+paso a paso en [docs/playbook-nuevo-agente.md](../docs/playbook-nuevo-agente.md)).
 
 ## Convenciones
 

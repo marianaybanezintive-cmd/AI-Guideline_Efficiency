@@ -1,0 +1,55 @@
+{
+  "generated_at": "2026-08-26T18:33:26.809695+00:00",
+  "dry_run": true,
+  "filters": {
+    "origin_type": "epica",
+    "origin_value": "MAGIA-547",
+    "issue_type": "Tarea",
+    "issue_types_resolved": [
+      "Tarea",
+      "Task"
+    ],
+    "status": "Relevamiento",
+    "status_mode": null,
+    "statuses_resolved": [
+      "Relevamiento"
+    ],
+    "title_prefix": "QA - ",
+    "assignee": null,
+    "target_placement": "same_sprint",
+    "jql": "project = MAGIA AND (parent = MAGIA-547 OR \"Epic Link\" = MAGIA-547) AND issuetype in (\"Tarea\", \"Task\") AND status = \"Relevamiento\" ORDER BY key ASC"
+  },
+  "counts": {
+    "matched": 2,
+    "candidates": 2,
+    "skipped_prefix": 0,
+    "ok": 0,
+    "fail": 0
+  },
+  "skipped_keys": [],
+  "results": [
+    {
+      "original_key": "MAGIA-587",
+      "original_summary": "Máquina de estados BE de reversión",
+      "clone_summary": "QA - Máquina de estados BE de reversión",
+      "status": "Relevamiento",
+      "issuetype": "Tarea",
+      "ok": true,
+      "dry_run": true
+    },
+    {
+      "original_key": "MAGIA-588",
+      "original_summary": "Cursor skill para revertir manualmente",
+      "clone_summary": "QA - Cursor skill para revertir manualmente",
+      "status": "Relevamiento",
+      "issuetype": "Tarea",
+      "ok": true,
+      "dry_run": true
+    }
+  ],
+  "config": {
+    "project_key": "MAGIA",
+    "board_id": 1607,
+    "jira_base_url": "https://bancoatlaspy.atlassian.net"
+  }
+}

@@ -1,13 +1,10 @@
 ---
 name: jira-load-user-stories
 description: >-
-  Scrum Master / Product Owner senior: carga en Jira las historias o tareas de un
-  archivo Markdown generado por po-expert-user-stories. Crea issues bajo la épica,
-  actualiza Description (COMO/QUIERO/PARA, escenarios BDD, criterios, fuera de alcance,
-  notas) sin metadatos; título sin códigos ni Issue Keys; en Description sustituye
-  códigos temporales (HU/LO/RN) por Issue Keys.
-  Usar después de validar el .md de po-expert-user-stories, al publicar backlog en Jira
-  o al pedir cargar historias automáticamente vía MCP user-jira.
+  SM/PO senior: publica en Jira las historias de un .md validado de
+  po-expert-user-stories. Crea issues bajo la épica (MCP) y actualiza Descriptions
+  vía REST sustituyendo códigos temporales (HU/LO/RN) por Issue Keys; títulos sin
+  códigos. Usar al cargar el backlog validado en Jira.
 disable-model-invocation: true
 ---
 

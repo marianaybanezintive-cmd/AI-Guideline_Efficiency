@@ -1,351 +1,260 @@
 {
-  "generated_at": "2026-08-21T12:50:50.820042+00:00",
+  "generated_at": "2026-08-26T18:35:50.318507+00:00",
   "dry_run": false,
   "filters": {
-    "origin_type": "epica",
-    "origin_value": "MAGIA-155",
-    "issue_type": "Historia de Usuario",
-    "issue_types_resolved": [
-      "Historia",
-      "Historia de Usuario",
-      "Story"
+    "epics": [
+      "MAGIA-350",
+      "MAGIA-547"
     ],
-    "status": "abiertos",
-    "status_mode": "open",
-    "statuses_resolved": [],
+    "issue_types": [
+      "Historia",
+      "Tarea"
+    ],
+    "status": "Relevamiento",
     "title_prefix": "QA - ",
     "assignee": null,
-    "target_placement": "same_sprint",
-    "jql": "project = MAGIA AND (parent = MAGIA-155 OR \"Epic Link\" = MAGIA-155) AND issuetype in (\"Historia\", \"Historia de Usuario\", \"Story\") AND statusCategory != Done ORDER BY key ASC"
+    "target_status": "Relevamiento",
+    "target_placement": "backlog"
   },
   "counts": {
-    "matched": 21,
-    "candidates": 21,
-    "skipped_prefix": 0,
-    "ok": 21,
-    "fail": 0
+    "ok": 13,
+    "fail": 0,
+    "total": 13
   },
-  "skipped_keys": [],
   "results": [
     {
-      "original_key": "MAGIA-351",
-      "original_summary": "BFF - Mail de bienvenida para EGP / PROVEEDOR",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-351",
-      "clone_key": "MAGIA-548",
-      "clone_summary": "QA - BFF - Mail de bienvenida para EGP / PROVEEDOR",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-548",
+      "original_key": "MAGIA-577",
+      "original_summary": "Marca de morosidad del EGP en panel Confirming",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-577",
+      "clone_key": "MAGIA-590",
+      "clone_summary": "QA - Marca de morosidad del EGP en panel Confirming",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-590",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Historia"
     },
     {
-      "original_key": "MAGIA-352",
-      "original_summary": "FE Primer login BANCO con credenciales de AD",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-352",
-      "clone_key": "MAGIA-549",
-      "clone_summary": "QA - FE Primer login BANCO con credenciales de AD",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-549",
+      "original_key": "MAGIA-578",
+      "original_summary": "Grilla grisada y bloqueada cuando el EGP está en mora",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-578",
+      "clone_key": "MAGIA-591",
+      "clone_summary": "QA - Grilla grisada y bloqueada cuando el EGP está en mora",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-591",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Historia"
     },
     {
-      "original_key": "MAGIA-353",
-      "original_summary": "FE Primer login EGP / PROVEEDOR con contraseña temporal",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-353",
-      "clone_key": "MAGIA-550",
-      "clone_summary": "QA - FE Primer login EGP / PROVEEDOR con contraseña temporal",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-550",
+      "original_key": "MAGIA-579",
+      "original_summary": "Notificación in-app por bloqueo de mora",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-579",
+      "clone_key": "MAGIA-592",
+      "clone_summary": "QA - Notificación in-app por bloqueo de mora",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-592",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Historia"
     },
     {
-      "original_key": "MAGIA-354",
-      "original_summary": "FE Configuración de 2FA en el primer login (EGP / PROVEEDOR)",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-354",
-      "clone_key": "MAGIA-551",
-      "clone_summary": "QA - FE Configuración de 2FA en el primer login (EGP / PROVEEDOR)",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-551",
+      "original_key": "MAGIA-580",
+      "original_summary": "ABM: configurar umbral de días de mora para bloqueo de límite",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-580",
+      "clone_key": "MAGIA-593",
+      "clone_summary": "QA - ABM: configurar umbral de días de mora para bloqueo de límite",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-593",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Historia"
     },
     {
-      "original_key": "MAGIA-355",
-      "original_summary": "FE Acceso recurrente con credenciales definitivas",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-355",
-      "clone_key": "MAGIA-552",
-      "clone_summary": "QA - FE Acceso recurrente con credenciales definitivas",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-552",
+      "original_key": "MAGIA-581",
+      "original_summary": "Levantar bloqueo por mora al acreditar el pago",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-581",
+      "clone_key": "MAGIA-594",
+      "clone_summary": "QA - Levantar bloqueo por mora al acreditar el pago",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-594",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Historia"
     },
     {
-      "original_key": "MAGIA-356",
-      "original_summary": "FE Validación de 2FA en accesos posteriores",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-356",
-      "clone_key": "MAGIA-553",
-      "clone_summary": "QA - FE Validación de 2FA en accesos posteriores",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-553",
+      "original_key": "MAGIA-584",
+      "original_summary": "GET · Estado de mora del EGP (API Prestamos)",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-584",
+      "clone_key": "MAGIA-595",
+      "clone_summary": "QA - GET · Estado de mora del EGP (API Prestamos)",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-595",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Tarea"
     },
     {
-      "original_key": "MAGIA-357",
-      "original_summary": "FE Cierre de sesión automático por inactividad",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-357",
-      "clone_key": "MAGIA-554",
-      "clone_summary": "QA - FE Cierre de sesión automático por inactividad",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-554",
+      "original_key": "MAGIA-585",
+      "original_summary": "Evaluar umbral ABM y aplicar/liberar bloqueo de límite",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-585",
+      "clone_key": "MAGIA-596",
+      "clone_summary": "QA - Evaluar umbral ABM y aplicar/liberar bloqueo de límite",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-596",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Tarea"
     },
     {
-      "original_key": "MAGIA-358",
-      "original_summary": "FE Cambio / desbloqueo de contraseña · BANCO",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-358",
-      "clone_key": "MAGIA-555",
-      "clone_summary": "QA - FE Cambio / desbloqueo de contraseña · BANCO",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-555",
+      "original_key": "MAGIA-586",
+      "original_summary": "Consumir mensaje CORE de pago acreditado",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-586",
+      "clone_key": "MAGIA-597",
+      "clone_summary": "QA - Consumir mensaje CORE de pago acreditado",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-597",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Tarea"
     },
     {
-      "original_key": "MAGIA-359",
-      "original_summary": "FE Cambio / desbloqueo de contraseña · EGP/PROVEEDOR con Home Banking",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-359",
-      "clone_key": "MAGIA-556",
-      "clone_summary": "QA - FE Cambio / desbloqueo de contraseña · EGP/PROVEEDOR con Home Banking",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-556",
+      "original_key": "MAGIA-589",
+      "original_summary": "TBD (en caso de no tener la API) - Mock contrato API Prestamos",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-589",
+      "clone_key": "MAGIA-598",
+      "clone_summary": "QA - TBD (en caso de no tener la API) - Mock contrato API Prestamos",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-598",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-350",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-350",
+      "issue_type_filter": "Tarea"
     },
     {
-      "original_key": "MAGIA-360",
-      "original_summary": "FE Cambio / desbloqueo de contraseña · gestión manual",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-360",
-      "clone_key": "MAGIA-557",
-      "clone_summary": "QA - FE Cambio / desbloqueo de contraseña · gestión manual",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-557",
+      "original_key": "MAGIA-582",
+      "original_summary": "Mostrar estados de reversión en grilla Confirming (FNV)",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-582",
+      "clone_key": "MAGIA-599",
+      "clone_summary": "QA - Mostrar estados de reversión en grilla Confirming (FNV)",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-599",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-547",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-547",
+      "issue_type_filter": "Historia"
     },
     {
-      "original_key": "MAGIA-361",
-      "original_summary": "FE Bloqueo de contraseña por n intentos (FE)",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-361",
-      "clone_key": "MAGIA-558",
-      "clone_summary": "QA - FE Bloqueo de contraseña por n intentos (FE)",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-558",
+      "original_key": "MAGIA-583",
+      "original_summary": "Filtro Estado incluye estados de reversión",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-583",
+      "clone_key": "MAGIA-600",
+      "clone_summary": "QA - Filtro Estado incluye estados de reversión",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-600",
       "sprint_ids": [
-        1776
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-547",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-547",
+      "issue_type_filter": "Historia"
     },
     {
-      "original_key": "MAGIA-362",
-      "original_summary": "BE POST · Envío de mail (Notificaciones existente)",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-362",
-      "clone_key": "MAGIA-559",
-      "clone_summary": "QA - BE POST · Envío de mail (Notificaciones existente)",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-559",
+      "original_key": "MAGIA-587",
+      "original_summary": "Máquina de estados BE de reversión",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-587",
+      "clone_key": "MAGIA-601",
+      "clone_summary": "QA - Máquina de estados BE de reversión",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-601",
       "sprint_ids": [
-        1777
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-547",
       "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-547",
+      "issue_type_filter": "Tarea"
     },
     {
-      "original_key": "MAGIA-363",
-      "original_summary": "BE POST · Validar mail/contraseña temporal (flag temporal)",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-363",
-      "clone_key": "MAGIA-560",
-      "clone_summary": "QA - BE POST · Validar mail/contraseña temporal (flag temporal)",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-560",
+      "original_key": "MAGIA-588",
+      "original_summary": "Cursor skill para revertir manualmente",
+      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-588",
+      "clone_key": "MAGIA-602",
+      "clone_summary": "QA - Cursor skill para revertir manualmente",
+      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-602",
       "sprint_ids": [
-        1777
+        1780
       ],
       "assignee": null,
-      "parent_key": "MAGIA-155",
+      "parent_key": "MAGIA-547",
       "ok": true,
-      "error": null
-    },
-    {
-      "original_key": "MAGIA-364",
-      "original_summary": "BE Actualizar contraseña ingresada por el usuario",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-364",
-      "clone_key": "MAGIA-561",
-      "clone_summary": "QA - BE Actualizar contraseña ingresada por el usuario",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-561",
-      "sprint_ids": [
-        1777
-      ],
-      "assignee": null,
-      "parent_key": "MAGIA-155",
-      "ok": true,
-      "error": null
-    },
-    {
-      "original_key": "MAGIA-365",
-      "original_summary": "BE POST · Envío OTP + validación de código",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-365",
-      "clone_key": "MAGIA-562",
-      "clone_summary": "QA - BE POST · Envío OTP + validación de código",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-562",
-      "sprint_ids": [
-        1777
-      ],
-      "assignee": null,
-      "parent_key": "MAGIA-155",
-      "ok": true,
-      "error": null
-    },
-    {
-      "original_key": "MAGIA-366",
-      "original_summary": "BE GET · Mail del usuario *(propuesto)*",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-366",
-      "clone_key": "MAGIA-563",
-      "clone_summary": "QA - BE GET · Mail del usuario *(propuesto)*",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-563",
-      "sprint_ids": [
-        1777
-      ],
-      "assignee": null,
-      "parent_key": "MAGIA-155",
-      "ok": true,
-      "error": null
-    },
-    {
-      "original_key": "MAGIA-367",
-      "original_summary": "BE POST · Validación de credenciales AD / Home / Manual",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-367",
-      "clone_key": "MAGIA-564",
-      "clone_summary": "QA - BE POST · Validación de credenciales AD / Home / Manual",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-564",
-      "sprint_ids": [
-        1777
-      ],
-      "assignee": null,
-      "parent_key": "MAGIA-155",
-      "ok": true,
-      "error": null
-    },
-    {
-      "original_key": "MAGIA-368",
-      "original_summary": "BE POST · Validación de 2FA",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-368",
-      "clone_key": "MAGIA-565",
-      "clone_summary": "QA - BE POST · Validación de 2FA",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-565",
-      "sprint_ids": [
-        1777
-      ],
-      "assignee": null,
-      "parent_key": "MAGIA-155",
-      "ok": true,
-      "error": null
-    },
-    {
-      "original_key": "MAGIA-369",
-      "original_summary": "BE Cookie de sesión en el inicio de sesión",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-369",
-      "clone_key": "MAGIA-566",
-      "clone_summary": "QA - BE Cookie de sesión en el inicio de sesión",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-566",
-      "sprint_ids": [
-        1777
-      ],
-      "assignee": null,
-      "parent_key": "MAGIA-155",
-      "ok": true,
-      "error": null
-    },
-    {
-      "original_key": "MAGIA-370",
-      "original_summary": "BE PATCH/POST · Cambio de contraseña (forgot + update)",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-370",
-      "clone_key": "MAGIA-567",
-      "clone_summary": "QA - BE PATCH/POST · Cambio de contraseña (forgot + update)",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-567",
-      "sprint_ids": [
-        1777
-      ],
-      "assignee": null,
-      "parent_key": "MAGIA-155",
-      "ok": true,
-      "error": null
-    },
-    {
-      "original_key": "MAGIA-371",
-      "original_summary": "BE POST · Validación de pass + flag de estado",
-      "original_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-371",
-      "clone_key": "MAGIA-568",
-      "clone_summary": "QA - BE POST · Validación de pass + flag de estado",
-      "clone_url": "https://bancoatlaspy.atlassian.net/browse/MAGIA-568",
-      "sprint_ids": [
-        1777
-      ],
-      "assignee": null,
-      "parent_key": "MAGIA-155",
-      "ok": true,
-      "error": null
+      "error": null,
+      "target_status": "Relevamiento",
+      "epic": "MAGIA-547",
+      "issue_type_filter": "Tarea"
     }
-  ],
-  "config": {
-    "project_key": "MAGIA",
-    "board_id": 1607,
-    "jira_base_url": "https://bancoatlaspy.atlassian.net"
-  }
+  ]
 }

@@ -2,6 +2,15 @@
 
 Publicado: 2026-08-20. Espacio: [Servicios Digitales Atlas](https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121).
 
+## POC — Atlas Trade
+
+Resumen funcional de Login, Mi perfil, ABM y Confirming (entregable de la POC v2.11.4):
+
+- Página: [POC - Atlas Trade](https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1664876548/POC+-+Atlas+Trade)
+- Fuente: `poc-atlas-trade-resumen-funcional.md`
+- Publicación: `python publish_poc_page.py`
+
+
 ## Qué se hizo
 
 - Se actualizaron las páginas de cada épica bajo **Documentación Funcional** y **Documentación Técnica**.

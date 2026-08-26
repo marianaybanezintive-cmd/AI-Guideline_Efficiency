@@ -1,12 +1,10 @@
 ---
 name: sm-mass-clone
 description: >-
-  Scrum Master Senior: clonado masivo de issues Jira (Historia, Tarea, Spike, Bug,
-  Subtarea) desde una épica, un sprint o el backlog. Pide origen, tipo, estado,
-  nomenclatura de título y asignado; clona con descripción, Principal, Sprint,
-  vínculo Relacionado a y genera un reporte .md. Usar cuando se pide clonar
-  masivamente tickets, crear clones QA, duplicar historias de una épica/sprint
-  o facilitar la gestión manual del backlog.
+  Scrum Master: clonado masivo de issues Jira desde épica, sprint o backlog. Pide
+  origen, tipo, estado, nomenclatura y asignado; dry-run con confirmación; clona
+  con descripción, parent, sprint y vínculo al original; reporte .md. Usar para
+  clones QA o duplicación masiva de tickets.
 ---
 
 # SM Mass Clone — Scrum Master Senior
@@ -23,18 +21,6 @@ No inventar issues. Todo clone sale de JQL + scripts REST. Si un dato falta, se 
 - Orígenes: **épica**, **sprint** o **backlog** del proyecto configurado.
 - Tipos: Historia / Tarea / Spike / Bug / Subtarea (u otros válidos del proyecto).
 - Salida: clones en Jira + reporte `.md` en `AI-Outputs/sm-mass-clone/`.
-
-## Estructura del agente
-
-```
-AI-Agents/sm-mass-clone/
-├── SKILL.md
-├── config.json
-├── references/clone-playbook.md
-└── scripts/  (jira_client, clone_issues, render_report, run_mass_clone.ps1, set_credentials.ps1)
-AI-Outputs/sm-mass-clone/
-└── <timestamp>-clone-report.md
-```
 
 ## Requisitos previos — credenciales (una sola vez)
 

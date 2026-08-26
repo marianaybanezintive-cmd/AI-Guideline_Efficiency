@@ -19,7 +19,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-sys.path.insert(0, str(Path(r"C:\Users\mariana.ybanez\Projects\AI-Guideline\AI-Agents\sm-mass-clone\scripts")))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "AI-Agents" / "sm-mass-clone" / "scripts"))
 from jira_client import JiraClient, JiraError, load_user_env_fallback  # noqa: E402
 
 SPACE_KEY = "~5ffedd6764208901414b0121"
@@ -54,6 +54,23 @@ EPICS = [
         "funcional_id": "1625687887",
         "tecnica_id": "1625688659",
         "tecnica_title": "Desembolso — Técnica",
+    },
+    {
+        "key": "MAGIA-350",
+        "title": "Morosidad",
+        "funcional_id": "1625687901",
+        "tecnica_id": "1625688673",
+        "tecnica_title": "Morosidad — Técnica",
+        "tecnica_child_types": ("Tarea", "Task"),
+    },
+    {
+        "key": "MAGIA-547",
+        "title": "Reversiones",
+        "funcional_id": "1669431297",
+        "tecnica_id": "1669693441",
+        "tecnica_parent_id": "1625687929",
+        "tecnica_title": "Reversiones — Técnica",
+        "tecnica_child_types": ("Tarea", "Task"),
     },
 ]
 
@@ -415,6 +432,95 @@ def upsert_page(wiki: WikiClient, parent_id: str, title: str, html: str, existin
         raise
 
 
+def publish_issues_under_parent(
+    wiki: WikiClient,
+    jira: JiraClient,
+    epic: dict,
+    parent_id: str,
+    issue_types: tuple[str, ...],
+    report: dict,
+    report_bucket: str,
+    label: str,
+) -> None:
+    children = wiki.list_children(parent_id)
+    by_title = {c.get("title"): c for c in children}
+    for child in children:
+        title = child.get("title") or ""
+        if is_qa_title(title):
+            try:
+                wiki.delete_page(child["id"])
+                print(f"  DELETED QA page ({label}) {title}")
+                report["deleted_qa"].append({"title": title, "id": child["id"], "parent": label})
+            except Exception as exc:
+                report["errors"].append(f"delete QA {title}: {exc}")
+
+    types_jql = ", ".join(f'"{t}"' for t in issue_types)
+    jql = (
+        f'project = MAGIA AND (parent = {epic["key"]} OR "Epic Link" = {epic["key"]}) '
+        f"AND issuetype in ({types_jql}) ORDER BY key ASC"
+    )
+    issues = jira.search_jql(
+        jql, fields=["summary", "description", "attachment", "issuetype"], max_results=100
+    )
+    kept = [s for s in issues if not is_qa_title(s["fields"]["summary"])]
+    print(f"  {label} a publicar: {len(kept)} (omitidas QA: {len(issues) - len(kept)})")
+
+    used_titles = set(by_title.keys())
+    for item in kept:
+        key = item["key"]
+        summary = item["fields"]["summary"].strip()
+        title = summary[:255]
+        media_files = []
+        desc_html = convert_node(item["fields"].get("description"), media_files)
+        html = wrap_hu_body(key, desc_html)
+        try:
+            validate_storage(html)
+        except ET.ParseError as exc:
+            report["errors"].append(f"{key} XML inválido: {exc}")
+            print(f"  XML INVALID {key}: {exc}")
+            continue
+
+        existing = by_title.get(title)
+        page_title = title
+        try:
+            if existing:
+                current = wiki.get_page(existing["id"])
+                page = wiki.update_page(existing["id"], page_title, html, current["version"]["number"])
+                action = "updated"
+            else:
+                try:
+                    page = wiki.create_page(page_title, parent_id, html)
+                except JiraError as exc:
+                    if "already exists" in str(exc).lower() or "HTTP 400" in str(exc):
+                        page_title = f"{key} — {title}"[:255]
+                        page = wiki.create_page(page_title, parent_id, html)
+                    else:
+                        raise
+                action = "created"
+                used_titles.add(page_title)
+
+            attachments = item["fields"].get("attachment") or []
+            if media_files:
+                page = publish_body(wiki, page, page_title, html, media_files, attachments)
+
+            url = page_webui(page)
+            print(f"  {action.upper()} {key} {page_title[:70]} ({label})")
+            report[report_bucket].append(
+                {
+                    "key": key,
+                    "epic": epic["key"],
+                    "title": page_title,
+                    "url": url,
+                    "action": action,
+                    "images": len(media_files),
+                    "section": label,
+                }
+            )
+        except Exception as exc:
+            print(f"  ERROR {key}: {exc}")
+            report["errors"].append(f"{key}: {exc}")
+
+
 def main(only_keys=None):
     load_user_env_fallback()
     jira = JiraClient()
@@ -422,6 +528,7 @@ def main(only_keys=None):
     report = {
         "epics": [],
         "stories": [],
+        "tasks": [],
         "deleted_qa": [],
         "errors": [],
     }
@@ -448,10 +555,27 @@ def main(only_keys=None):
             print("XML INVALID", epic["key"], exc)
             continue
 
-        for page_id, title in (
-            (epic["funcional_id"], epic["title"]),
-            (epic["tecnica_id"], epic["tecnica_title"]),
-        ):
+        tecnica_id = epic.get("tecnica_id")
+        if not tecnica_id and epic.get("tecnica_parent_id"):
+            parent_id = epic["tecnica_parent_id"]
+            tecnica_title = epic["tecnica_title"]
+            siblings = wiki.list_children(parent_id)
+            match = next((c for c in siblings if c.get("title") == tecnica_title), None)
+            if match:
+                tecnica_id = match["id"]
+            else:
+                created = wiki.create_page(tecnica_title, parent_id, html)
+                tecnica_id = created["id"]
+                url = page_webui(created)
+                print(f"  CREATED {tecnica_title} -> {url}")
+                report["epics"].append(
+                    {"key": epic["key"], "title": tecnica_title, "url": url, "action": "created"}
+                )
+
+        pages = [(epic["funcional_id"], epic["title"])]
+        if tecnica_id:
+            pages.append((tecnica_id, epic["tecnica_title"]))
+        for page_id, title in pages:
             try:
                 current = wiki.get_page(page_id)
                 updated = wiki.update_page(page_id, title, html, current["version"]["number"])
@@ -462,86 +586,29 @@ def main(only_keys=None):
                 print(f"  ERROR epic page {title}: {exc}")
                 report["errors"].append(f"{epic['key']} {title}: {exc}")
 
-        children = wiki.list_children(epic["funcional_id"])
-        by_title = {c.get("title"): c for c in children}
-        for child in children:
-            title = child.get("title") or ""
-            if is_qa_title(title):
-                try:
-                    wiki.delete_page(child["id"])
-                    print(f"  DELETED QA page {title}")
-                    report["deleted_qa"].append({"title": title, "id": child["id"]})
-                except Exception as exc:
-                    report["errors"].append(f"delete QA {title}: {exc}")
-
-        jql = (
-            f'project = MAGIA AND (parent = {epic["key"]} OR "Epic Link" = {epic["key"]}) '
-            f'AND issuetype in ("Historia", "Historia de Usuario", "Story") ORDER BY key ASC'
+        publish_issues_under_parent(
+            wiki,
+            jira,
+            epic,
+            epic["funcional_id"],
+            STORY_TYPES,
+            report,
+            "stories",
+            "HUs",
         )
-        stories = jira.search_jql(
-            jql, fields=["summary", "description", "attachment", "issuetype"], max_results=100
-        )
-        kept = [s for s in stories if not is_qa_title(s["fields"]["summary"])]
-        print(f"  HUs a publicar: {len(kept)} (omitidas QA: {len(stories) - len(kept)})")
 
-        used_titles = set(by_title.keys())
-        for story in kept:
-            key = story["key"]
-            summary = story["fields"]["summary"].strip()
-            title = summary[:255]
-            if title in used_titles and (
-                not by_title.get(title) or True
-            ):
-                # If another issue already claimed this title in the space, prefix key.
-                pass
-            media_files = []
-            desc_html = convert_node(story["fields"].get("description"), media_files)
-            html = wrap_hu_body(key, desc_html)
-            try:
-                validate_storage(html)
-            except ET.ParseError as exc:
-                report["errors"].append(f"{key} XML inválido: {exc}")
-                print(f"  XML INVALID {key}: {exc}")
-                continue
-
-            existing = by_title.get(title)
-            page_title = title
-            try:
-                if existing:
-                    current = wiki.get_page(existing["id"])
-                    page = wiki.update_page(existing["id"], page_title, html, current["version"]["number"])
-                    action = "updated"
-                else:
-                    try:
-                        page = wiki.create_page(page_title, epic["funcional_id"], html)
-                    except JiraError as exc:
-                        if "already exists" in str(exc).lower() or "HTTP 400" in str(exc):
-                            page_title = f"{key} — {title}"[:255]
-                            page = wiki.create_page(page_title, epic["funcional_id"], html)
-                        else:
-                            raise
-                    action = "created"
-                    used_titles.add(page_title)
-
-                attachments = story["fields"].get("attachment") or []
-                if media_files:
-                    page = publish_body(wiki, page, page_title, html, media_files, attachments)
-
-                url = page_webui(page)
-                print(f"  {action.upper()} {key} {page_title[:70]}")
-                report["stories"].append(
-                    {
-                        "key": key,
-                        "epic": epic["key"],
-                        "title": page_title,
-                        "url": url,
-                        "action": action,
-                        "images": len(media_files),
-                    }
-                )
-            except Exception as exc:
-                print(f"  ERROR {key}: {exc}")
-                report["errors"].append(f"{key}: {exc}")
+        child_types = epic.get("tecnica_child_types")
+        if child_types and tecnica_id:
+            publish_issues_under_parent(
+                wiki,
+                jira,
+                epic,
+                tecnica_id,
+                child_types,
+                report,
+                "tasks",
+                "Tareas técnicas",
+            )
 
     suffix = "-".join(e["key"] for e in epics) if only_keys else ""
     name = f"publish-report-{suffix}.json" if suffix else "publish-report.json"
@@ -550,7 +617,8 @@ def main(only_keys=None):
     print(f"\nReporte: {out}")
     print(
         f"Épicas: {len(report['epics'])} | HUs: {len(report['stories'])} | "
-        f"QA borradas: {len(report['deleted_qa'])} | Errores: {len(report['errors'])}"
+        f"Tareas: {len(report['tasks'])} | QA borradas: {len(report['deleted_qa'])} | "
+        f"Errores: {len(report['errors'])}"
     )
     if report["errors"]:
         sys.exit(1)

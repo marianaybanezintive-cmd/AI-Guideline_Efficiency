@@ -1,0 +1,37 @@
+---
+description: Reglas duras al crear o modificar agentes en AI-Agents/ — presupuestos de tokens y revisión obligatoria con agent-efficiency-reviewer
+alwaysApply: true
+---
+
+# Agentes nuevos o modificados — reglas duras
+
+Aplican a **todo cambio bajo `AI-Agents/`** (SKILL.md, references, configs, scripts).
+Fuente de verdad de umbrales y reglas: `docs/agent-token-efficiency.md`.
+Paso a paso completo: `docs/playbook-nuevo-agente.md`.
+
+## Antes de escribir
+
+1. **Leé `docs/agent-token-efficiency.md`** (presupuestos y reglas de diseño vigentes).
+2. Diseñá dentro de los presupuestos, no recortes después:
+   - `description` frontmatter ≤ **350 chars** (límite duro 500). Solo «qué + cuándo».
+   - `SKILL.md` completo (`wc -c`) ≤ **6.000 chars** (límite duro 10.000, requiere justificación escrita).
+   - Plantillas, esquemas, ejemplos largos y setup de una sola vez → `references/`, enlazados.
+   - Lógica determinista → `scripts/` con salida a archivo.
+   - Cero duplicación entre SKILL y referencias; un ejemplo por regla.
+   - El SKILL debe exigir cierre en chat = resumen + rutas + conteos (nunca el entregable completo).
+   - Evaluá `disable-model-invocation: true` si solo se invoca explícitamente.
+
+## Después de escribir (bloqueante)
+
+3. **Ejecutá el skill `agent-efficiency-reviewer`** sobre el agente tocado.
+4. **No commitees sin veredicto** `APROBADO` o `APROBADO CON OBSERVACIONES`.
+   Con `MEJORAR`: aplicá las correcciones y volvé a medir. El límite duro de 10.000
+   no admite excepción.
+5. Agregá/actualizá la fila del agente en `AI-Agents/README.md`.
+6. Recién entonces aplicá git sync (regla `git-sync.mdc` + `config.json` raíz).
+
+## Alcance
+
+- Cambios menores (typo, un enlace) en un agente ya aprobado: medí con `wc -c` que no
+  cruzó ningún umbral; si no cruzó, no hace falta reviewer completo.
+- Esta regla NO aplica a `AI-Outputs/` ni a `docs/`.

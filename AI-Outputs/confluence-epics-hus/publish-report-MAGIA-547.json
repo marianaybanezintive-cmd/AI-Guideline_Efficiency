@@ -1,0 +1,58 @@
+{
+  "epics": [
+    {
+      "key": "MAGIA-547",
+      "title": "Reversiones",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669431297/Reversiones",
+      "action": "updated"
+    },
+    {
+      "key": "MAGIA-547",
+      "title": "Reversiones — Técnica",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669693441/Reversiones+T+cnica",
+      "action": "updated"
+    }
+  ],
+  "stories": [
+    {
+      "key": "MAGIA-582",
+      "epic": "MAGIA-547",
+      "title": "FE-Mostrar estados de reversión en grilla Confirming (FNV)",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669693459/FE-Mostrar+estados+de+reversi+n+en+grilla+Confirming+FNV",
+      "action": "updated",
+      "images": 0,
+      "section": "HUs"
+    },
+    {
+      "key": "MAGIA-583",
+      "epic": "MAGIA-547",
+      "title": "FE-Filtro Estado incluye estados de reversión",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669595144/FE-Filtro+Estado+incluye+estados+de+reversi+n",
+      "action": "updated",
+      "images": 0,
+      "section": "HUs"
+    }
+  ],
+  "tasks": [
+    {
+      "key": "MAGIA-587",
+      "epic": "MAGIA-547",
+      "title": "BFF/BE-Máquina de estados BE de reversión",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669857281/BFF+BE-M+quina+de+estados+BE+de+reversi+n",
+      "action": "created",
+      "images": 0,
+      "section": "Tareas técnicas"
+    },
+    {
+      "key": "MAGIA-588",
+      "epic": "MAGIA-547",
+      "title": "Cursor skill para revertir manualmente",
+      "url": "https://bancoatlaspy.atlassian.net/wiki/spaces/~5ffedd6764208901414b0121/pages/1669890049/Cursor+skill+para+revertir+manualmente",
+      "action": "created",
+      "images": 0,
+      "section": "Tareas técnicas"
+    }
+  ],
+  "deleted_qa": [],
+  "errors": []
+}

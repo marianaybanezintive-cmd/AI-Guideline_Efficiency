@@ -1,11 +1,10 @@
 ---
 name: po-expert-user-stories
 description: >-
-  Descompone documentos de negocio, story maps, diagramas, épicas o Excel en historias
-  de usuario detalladas con plantilla fija de 13 secciones (contexto, RN, catálogo MSG,
-  tarjetas HU/HT, spikes, trazabilidad, DoR/DoD). Pausa interactiva en supuestos (§3.3)
-  y dudas (§9). Gherkin en español con mensajes UI inline desde el catálogo. Entrega MD + CSV.
-  Usar en refinamiento PO, backlog desde planilla o descomposición funcional.
+  PO senior: descompone documentos de negocio, story maps, diagramas, épicas o Excel
+  en historias de usuario con plantilla fija de 13 secciones y pausas interactivas
+  (supuestos §3.3, dudas §9). Gherkin en español, mensajes UI inline. Entrega MD + CSV.
+  Usar en refinamiento PO o descomposición de backlog.
 disable-model-invocation: true
 ---
 
@@ -46,26 +45,11 @@ Si falta información crítica, **declara supuestos explícitos** en §3.3 (no b
 
 ## Estructura obligatoria del `.md` — 13 secciones
 
-**Siempre**, sin excepción, el archivo Markdown debe construir las **13 secciones numeradas 0–13** definidas en [md-template.md](md-template.md).
+**Siempre**, sin excepción, el archivo Markdown construye las **secciones 0–13** definidas en [md-template.md](md-template.md) — **leer esa plantilla antes de redactar**; contiene la estructura exacta de cada sección y de las tarjetas HU/HT.
 
-| § | Sección | Obligatorio |
-|---|---------|-------------|
-| 0 | Qué cambia respecto de versión anterior | Sí |
-| 1 | Criterio de elaboración y alcance | Sí |
-| 2 | Matriz de inclusión / desestimación | Sí |
-| 3 | Contexto, actores y supuestos (3.1, 3.2, **3.3**) | Sí |
-| 4 | Reglas de negocio transversales (RN) | Sí |
-| 5 | Catálogo de mensajes UI | Sí *(o «No aplica» explícito)* |
-| 6 | Historias de usuario funcionales (tarjetas) | Sí |
-| 7 | Historias técnicas — Endpoints BFF/BE | Sí *(o «No aplica»)* |
-| 8 | Tareas técnicas / habilitadores | Sí *(o «No aplica»)* |
-| 9 | Spikes y decisiones pendientes (DUDAS) | Sí |
-| 10 | Recomendaciones PO — historias faltantes | Sí |
-| 11 | Observaciones consistencia del input | Sí |
-| 12 | Matriz trazabilidad HU ↔ endpoint ↔ pantalla | Sí |
-| 13 | Definition of Ready / Definition of Done | Sí |
+Resumen: 0 cambios de versión · 1 criterio y alcance · 2 matriz inclusión/desestimación · 3 contexto, actores y supuestos (**3.3**) · 4 RN transversales · 5 catálogo MSG · 6 tarjetas HU funcionales · 7 HT endpoints BFF/BE · 8 tareas técnicas · 9 spikes/DUDAS · 10 recomendaciones PO · 11 consistencia del input · 12 trazabilidad HU ↔ endpoint ↔ pantalla · 13 DoR/DoD.
 
-La plantilla detallada (tablas, tarjetas HU/HT, encabezados) está en [md-template.md](md-template.md). **No omitir secciones** aunque el input no tenga Excel, mensajes UI o endpoints: usar la nota «No aplica» con breve justificación.
+**No omitir secciones** aunque el input no tenga Excel, mensajes UI o endpoints: usar la nota «No aplica» con breve justificación (aplica a §5, §7 y §8).
 
 ## Pausas interactivas (human-in-the-loop)
 
@@ -105,54 +89,18 @@ El flujo **no es lineal de punta a punta**. Hay **dos puntos de parada obligator
 
 Si el usuario escribe explícitamente **«continuar sin pausa»**, **«no preguntar supuestos»** o equivalente al inicio de la corrida, podés omitir las pausas y marcar Confirmación/Respuesta como «pendiente — usuario pidió continuar sin pausa».
 
-## Catálogo de mensajes UI (§5) y Gherkin
+## Catálogo de mensajes UI (§5) y regla inline
 
-### §5 — Fuente unificada
-
-- Todos los textos visibles al usuario se definen **una sola vez** en §5 con código `MSG-XX`, contexto y mensaje literal.
-- Si el input no define textos, **propón** un catálogo razonable para el dominio y marcá los que requieran validación UX.
-
-### Regla de inline en BDD (obligatoria)
-
-Cuando un escenario Gherkin o un criterio de aceptación referencia un mensaje UI:
-
-- **Prohibido** citar solo el código (`MSG-01`, «veo MSG-04»).
-- **Obligatorio** incluir el **texto literal** del mensaje definido en §5, además del código.
-
-**Formato preferido en Gherkin:**
+- Todos los textos visibles al usuario se definen **una sola vez** en §5 (`MSG-XX`, contexto, mensaje literal). Si el input no trae textos, proponer un catálogo razonable y marcar los que requieran validación UX.
+- **Regla inline (obligatoria):** al citar un `MSG-XX` en Gherkin o en criterios de aceptación, incluir además el **texto literal** de §5 — nunca solo el código. Formato preferido:
 
 ```gherkin
-Entonces veo el mensaje MSG-01: "Usuario o contraseña incorrectos. Te quedan {n} intentos antes de que bloqueemos tu acceso."
+Entonces veo el mensaje MSG-01: "Usuario o contraseña incorrectos. Te quedan {n} intentos…"
 ```
-
-Variantes aceptables:
-
-```gherkin
-Y el sistema muestra MSG-02 ("Tu acceso fue bloqueado por 3 intentos fallidos…")
-```
-
-En **criterios de aceptación** numerados:
-
-```markdown
-3. **[Error]** Credenciales incorrectas: MSG-01 — "Usuario o contraseña incorrectos…"
-```
-
-El catálogo §5 sigue siendo la **fuente de verdad**; el inline en BDD evita cruces manuales para quien lee la historia.
 
 ## Formato de tarjetas (§6 y §7)
 
-Cada historia funcional (§6) y técnica (§7) sigue el formato **tarjeta de backlog** de [md-template.md](md-template.md):
-
-- Metadatos en tabla (Tipo, Épica, Actor, Prioridad, Depende de, Habilita, Pantalla POC / Contrato).
-- Historia Connextra en bloque multilínea (`Como / quiero / para`) **sin** negritas COMO/QUIERO/PARA.
-- **Valor de negocio** (HU) u **Objetivo técnico** (HT).
-- **Escenarios fuente** con transcripción literal del input cuando exista.
-- **Criterios de aceptación numerados** con tags `[Feliz]`, `[Alternativo]`, `[Error]`, `[Validación]`.
-- **Escenarios BDD** en Gherkin **español** (`Característica`, `Antecedentes`, `Escenario`, `Esquema del escenario`, `Ejemplos`, `Dado`, `Cuando`, `Entonces`, `Y`).
-- **Fuera de alcance**, **Notas / preguntas abiertas**, **Chequeo INVEST** (§6).
-- **Errores esperados** (tabla HTTP — §7).
-
-Orden dentro de cada tarjeta: Historia → Valor/Objetivo → Escenarios fuente → **AC** → **BDD** → Fuera de alcance → Notas → INVEST/Errores.
+Cada tarjeta HU/HT sigue exactamente la estructura de [md-template.md](md-template.md): metadatos en tabla, historia Connextra (`Como / quiero / para`, sin negritas), valor de negocio u objetivo técnico, escenarios fuente literales, AC numerados con tags `[Feliz]` `[Alternativo]` `[Error]` `[Validación]`, escenarios BDD en Gherkin **español**, fuera de alcance, notas, chequeo INVEST (§6) o tabla de errores HTTP (§7) — en ese orden.
 
 ## Entregables en disco (obligatorio): Markdown + CSV
 
