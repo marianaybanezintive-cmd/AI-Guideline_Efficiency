@@ -164,7 +164,8 @@ Una fila por ítem del input. `US` = `US ID` del Excel. Estado ✅ = se elabora 
 | **Adaptador A3** | Particularidades del diccionario de A3 respecto del estándar FIX 5.0 SP2 (campos custom, `SecurityExchange=ROFX`, `Parties`) | E2 |
 | **Motor de normalización** | Traduce mensajes FIX al modelo canónico de BBVA | E2 |
 | **Publicador MQ** | Publica eventos normalizados en las colas de BBVA | E2 |
-| **Consumidor MQ** | Consume instrucciones desde BBVA | **E4** |
+| **Consumidor MQ** | Consume **comandos de consulta** desde BBVA (sólo lectura) | **E2** ✅ 16-09 |
+| **Consumidor MQ — instrucciones de orden** | Consume instrucciones de alta, modificación y cancelación | **E4** |
 | **Store de sesión** | Persistencia de `MsgSeqNum` entrante y saliente, resistente a reinicio | E2 |
 | **Auditoría** | Log *raw* de todo mensaje FIX, log de mensajes MQ, correlación | E2 |
 | **Observabilidad** | Estado de sesión, métricas, alertas | E2 |
@@ -178,7 +179,7 @@ Una fila por ítem del input. `US` = `US ID` del Excel. Estado ✅ = se elabora 
 | **SUP-01** | **El corte del MVP es «el conector observa, no actúa».** Ningún mensaje que cree, modifique o cancele una orden (`35=D`, `35=F`, `35=G`, `35=q`) entra en las épicas 1 a 3, ni siquiera `Order Mass Cancel Request` en su uso como *kill switch* operativo | ✅ Confirmado por el PO, sin cambios (2026-09-15) |
 | **SUP-02** | **«TCR» en el MVP significa exclusivamente Trade Capture Report de operaciones regulares (`TrdType=0`).** Block trades, allocations, giveups, confirmaciones y reporte de posiciones quedan fuera del alcance del proyecto, no sólo de la Fase 1 | ✅ Confirmado por el PO, sin cambios (2026-09-15) |
 | **SUP-03** | **El tráfico de Execution Reports de la Fase 1 provendrá de una sesión de drop copy de A3 y de consultas `Order Mass Status Request`**, y el tráfico de prueba se generará cargando órdenes manualmente en eTrader sobre el ambiente reMarkets. Sin esto no hay ER que procesar, porque el conector no rutea órdenes | ✅ **Confirmado y ampliado (2026-09-16).** La modalidad es **FIX Drop Copy**: A3 configura la sesión del conector con un **perfil de sólo lectura** asociado a determinados IDs de cuentas o de operadores, y el motor de negociación **duplica en tiempo real** hacia esa sesión cada ER de las órdenes operadas, canceladas o modificadas en esas cuentas. El conector es un **oyente pasivo**. En homologación el tráfico se genera por inyección de órdenes de un tercero (soporte de Primary o el propio equipo desde el Trader de reMarkets) sobre cuentas espejo mapeadas a la sesión. Ver `S-01` |
-| **SUP-04** | **El MVP es puramente saliente hacia MQ** (conector → BBVA). No se implementa consumo de instrucciones ni de comandos desde MQ en la Fase 1; la cola de entrada se abre recién en la Épica 4 | ✅ Confirmado por el PO, sin cambios (2026-09-15) |
+| **SUP-04** | ~~El MVP es puramente saliente hacia MQ; la cola de entrada se abre recién en la Épica 4~~ | ⚠️ **Superado parcialmente (2026-09-16).** `S-07` definió que **BBVA dispara las consultas enviando comandos por MQ**, por lo que el MVP **sí incorpora una cola de entrada**, acotada a **comandos de sólo lectura**. El supuesto se mantiene únicamente para las **instrucciones de orden**, que siguen siendo Épica 4. Ver `FIX-2.15` y RN-20 |
 | **SUP-05** | **La persistencia de secuencias se resuelve con almacenamiento en archivos**, que es el patrón estándar de los motores FIX y lo que anota el propio Excel («se utiliza file storage»). Sybase se incorpora sólo si BBVA lo exige por política | ✅ **Confirmado con motivo explícito (2026-09-16): persistencia por archivos, deliberadamente para no impactar la base de datos.** Sybase queda **fuera del alcance del MVP**. Ver `S-10` |
 | **SUP-06** | **La rotación diaria de contraseña se resolverá fuera del protocolo FIX.** El ROE de A3 v2.0.53 no define el tag `NewPassword` (925) ni ningún mensaje de cambio de credenciales, por lo que el esquema de secret con `<contraseña actual>` + `<nueva contraseña>` de la propuesta técnica no es implementable tal como está redactado. Se asume un secret con la contraseña vigente y rotación gestionada por acuerdo con A3 | ✅ **Confirmado y ampliado (2026-09-16).** La gestión de contraseñas es **puramente administrativa y fuera de banda**: en reMarkets las asigna y modifica el soporte de Primary; en producción las gestiona la ALyC o el operador del mercado desde las consolas administrativas de Primary. **El conector no debe intentar cambiar contraseñas de forma programática.** **Ampliación del 2026-09-16:** el conector **no lee un secret**, sino que **obtiene las credenciales de A3 desde una API del banco**. Ver `S-02`, `S-17`, RN-06 y RN-18 |
 | **SUP-07** | **Se usa exclusivamente el gateway FIX-PTP**: `fix.remarkets.primary.com.ar:9876` para pruebas y `fixgw.ptp.primary.com.ar:9876` para producción. Los gateways FIX-PTP-HR y FIX-PTP-LL no se contemplan en ninguna de las cinco épicas | ✅ Confirmado por el PO, sin cambios (2026-09-15) |
@@ -217,6 +218,7 @@ Referenciadas desde los criterios de aceptación y los escenarios BDD para no re
 | **RN-15** | **El conector no es un OMS.** No mantiene posiciones, no calcula tenencias y no es la fuente de verdad del estado de una orden: refleja y publica el estado que A3 informa | Excel, observación de US 11 |
 | **RN-16** | El conector **no aplica reglas de negocio diferenciadas por producto** (TRD, Renta Fija, Cauciones) en las épicas 1 a 3: normaliza y publica lo que recibe | SUP-09 |
 | **RN-17** | **El conector opera como oyente pasivo sobre una sesión FIX Drop Copy de sólo lectura.** A3 asocia la sesión a un conjunto de IDs de cuentas o de operadores y duplica en tiempo real los eventos de esas cuentas. En consecuencia: los Execution Reports llegan **no solicitados**, el `ClOrdID` (11) que traen fue generado por **sistemas de terceros** (terminales de Primary, sistemas propios de BBVA o plataformas DMA) y **no pertenece al espacio de identificadores del conector**, que por lo tanto no puede asumir su unicidad ni su formato | `S-01`, resuelto el 2026-09-16 |
+| **RN-20** | **La cola de entrada del MVP admite exclusivamente comandos de consulta de sólo lectura.** Todo comando que pueda derivar en un mensaje que modifique el estado del mercado —alta, modificación o cancelación de orden— se **rechaza, se registra y se alerta**, sin emitir ningún mensaje FIX. El canal de entrada no es un camino de ruteo de órdenes hasta la Épica 4 | `S-07`, resuelto el 2026-09-16 · Resguardo de RN-01 |
 | **RN-19** | **Los números de secuencia de la sesión FIX se reinician en cada jornada.** En consecuencia, la persistencia de secuencias tiene alcance **intra-jornada**: sirve para sobrevivir a un reinicio del proceso dentro del día de negociación, no para dar continuidad entre días. La detección de gaps, el `Resend Request` y la ventana de deduplicación quedan acotados a la jornada | `S-03`, resuelto el 2026-09-16 |
 | **RN-18** | **El conector nunca intenta cambiar credenciales de forma programática.** Ante un `Logout` (`35=5`) de respuesta a un `Logon` cuyo `Text` (58) indique credenciales inválidas, expiradas o usuario bloqueado, el conector aplica **hard stop**: detiene todo reintento automático de conexión para no bloquear el usuario por intentos fallidos, y emite alerta crítica. La reanudación requiere intervención manual explícita de un administrador | `S-02`, resuelto el 2026-09-16 |
 
@@ -253,6 +255,8 @@ Referenciadas desde los criterios de aceptación y los escenarios BDD para no re
 | **MSG-21** | Evento | Operación concertada publicada | "Operación concertada {tradeReportId} publicada: {symbol}, {side}, {lastQty} a {lastPx}." |
 | **MSG-22** | Auditoría | TCR fuera de alcance | "Trade Capture Report con TrdType {trdType} fuera del alcance del conector. Registrado, no publicado." |
 | **MSG-23** | Error crítico | Credenciales rechazadas — *hard stop* | "A3 rechazó las credenciales: {text}. Se detienen los reintentos automáticos para no bloquear el usuario. Requiere intervención manual de un administrador." |
+| **MSG-26** | Error | Comando de consulta inválido | "Comando de consulta inválido: {motivo}. Derivado a {colaError}." |
+| **MSG-27** | Alerta | Comando fuera de alcance | "Comando fuera del alcance del conector: {tipo}. El canal de entrada admite únicamente consultas de sólo lectura. Rechazado y registrado." |
 | **MSG-25** | Evento | Apertura de jornada | "Apertura de jornada: números de secuencia reiniciados. Entrante 1, saliente 1." |
 | **MSG-24** | Evento | Sesión en modalidad Drop Copy | "Sesión establecida en modalidad Drop Copy de sólo lectura, asociada a las cuentas {cuentas}. El conector opera como oyente pasivo." |
 
@@ -820,7 +824,7 @@ Característica: Obtención y publicación de operaciones concertadas en A3
 
 - **Esta historia no tenía ningún contenido en el backlog borrador.** Los criterios se derivaron del ROE de A3 y **quedan pendientes de validación funcional con los referentes de negocio de BBVA**.
 - **Resuelto el 2026-09-16 (`S-05`): sólo consulta, no hay suscripción.** El flujo de TCR es exclusivamente *pull*. Queda descartado todo diseño basado en recepción no solicitada de Trade Capture Reports.
-- **Resuelto el 2026-09-16 (`S-06`): consulta asincrónica a demanda, sin periodicidad fija.** Se descarta la propuesta de consulta programada al cierre de jornada: el conector **no planifica consultas por horario**, las emite cuando la necesidad se presenta. El criterio de disparo deja de ser temporal y pasa a ser por demanda. ⚠️ Queda por cerrar **quién origina esa demanda**, que es `S-07`.
+- **Resuelto el 2026-09-16 (`S-06`): consulta asincrónica a demanda, sin periodicidad fija.** Se descarta la propuesta de consulta programada al cierre de jornada: el conector **no planifica consultas por horario**, las emite cuando la necesidad se presenta. El criterio de disparo deja de ser temporal y pasa a ser por demanda. ✅ **Resuelto (`S-07`): la demanda la origina BBVA enviando un comando por MQ.** El disparador de esta historia es `FIX-2.15`.
 - **Pendiente de confirmar con A3 (`S-16`):** que el perfil Drop Copy de sólo lectura admita emitir `Trade Capture Report Request`. Si no lo admitiera, los TCR llegarían únicamente como eventos duplicados y esta historia se simplificaría a consumo pasivo.
 
 #### Chequeo INVEST
@@ -927,7 +931,7 @@ Característica: Consulta del estado de órdenes en A3
 #### Notas / preguntas abiertas
 
 - ⚠️ **Verificación necesaria en la Épica 1:** la sesión del MVP es un **perfil Drop Copy de sólo lectura** (RN-17). Hay que confirmar con A3 que ese perfil **admite emitir `Order Status Request` y `Order Mass Status Request`**. Ambos son de lectura, pero un perfil restringido podría no habilitarlos. Si A3 no los admite sobre Drop Copy, esta historia y la reconciliación de `FIX-2.07` necesitan rediseñarse sobre el flujo de eventos duplicados. Se agrega como `S-16`.
-- ⚠️ **Requiere una aclaración de una línea (`S-07`).** La respuesta recibida fue «A3», que no responde literalmente a la pregunta: A3 no puede disparar una consulta que emite el conector. **Interpretación aplicada:** el disparo es **reactivo a los eventos que A3 envía** por la sesión Drop Copy —el conector consulta cuando un evento recibido lo amerita, sin planificación horaria—, lo que es coherente con «asincrónico a demanda» de `S-06` y preserva SUP-04 sin necesidad de cola de entrada. **Confirmar antes de cerrar el diseño**, porque decide si hay que construir un planificador, un canal de entrada desde BBVA, o ninguno de los dos.
+- ✅ **Resuelto el 2026-09-16 (`S-07`): las consultas las dispara BBVA enviando un comando por MQ.** El disparador de esta historia es `FIX-2.15`. No hay planificador horario en el conector. Esta definición **supera SUP-04** e incorpora una cola de entrada al MVP, acotada a comandos de sólo lectura por RN-20.
 
 #### Chequeo INVEST
 
@@ -1107,6 +1111,109 @@ Característica: Observabilidad de la sesión FIX
 | I | N | V | E | S | T |
 |---|---|---|---|---|---|
 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+### FIX-2.15 — Consumir desde MQ los comandos de consulta de BBVA
+
+| | |
+|---|---|
+| **Tipo** | HU |
+| **Épica** | E2 |
+| **Trazabilidad input** | **No está en el Excel ni en el plan de trabajo.** Emergente de la resolución de `S-07` (2026-09-16) |
+| **Actor** | Sistemas consumidores de BBVA |
+| **Prioridad sugerida** | Must — sin esta historia, `FIX-2.05` y `FIX-2.06` no tienen disparador |
+| **Estimación del input** | Sin estimar — **es alcance nuevo** |
+| **Depende de** | `T-03` (contrato MQ de entrada), `T-08` (framework MQ) |
+| **Habilita** | `FIX-2.05`, `FIX-2.06`, `FIX-2.07` · Base de infraestructura de `FIX-4.01` |
+
+#### Historia
+
+```
+Como sistema consumidor de BBVA
+quiero solicitar por MQ una consulta de estado de órdenes o de operaciones concertadas
+para obtener del mercado la información en el momento en que la necesito, sin depender de una planificación fija del conector
+```
+
+#### Valor de negocio
+
+Convierte al conector de un publicador autónomo en un servicio consultable. BBVA deja de esperar a que el conector decida cuándo consultar y pasa a pedir la información cuando su proceso la requiere, que es lo que significa «asincrónico a demanda».
+
+#### Escenarios fuente
+
+> No hay escenarios en el input. **Esta historia es alcance nuevo**, surgido de la definición de `S-07`: las consultas las dispara BBVA enviando un comando por MQ. Esa definición **supera el supuesto SUP-04** («el MVP es puramente saliente»), que se mantiene sólo para las instrucciones de orden.
+
+#### Criterios de aceptación
+
+1. **[Feliz]** El conector consume los comandos desde la cola de entrada definida en `T-03`.
+2. **[Feliz]** Soporta los cuatro tipos de comando del MVP: consulta de estado de una orden puntual, consulta masiva de estado, consulta de operaciones concertadas por cuenta y consulta de operaciones concertadas por símbolo.
+3. **[Feliz]** Cada comando se traduce al mensaje FIX correspondiente (`35=H`, `35=AF` o `35=AD`) conforme a `FIX-2.06` y `FIX-2.05`.
+4. **[Feliz]** El resultado se publica en la cola de salida **correlacionado con el identificador del comando**, de modo que el solicitante pueda vincular la respuesta con su pedido, conforme a RN-04.
+5. **[Feliz]** El comando recibido queda registrado en auditoría con su `correlation ID`, conforme a RN-03.
+6. **[Error]** Un comando con estructura inválida o campos obligatorios ausentes se rechaza, se deriva a la cola de error y se publica MSG-26: "Comando de consulta inválido: {motivo}. Derivado a {colaError}."
+7. **[Validación — crítica]** El conector **rechaza y alerta todo comando que no sea de consulta**, en particular cualquier intento de alta, modificación o cancelación de orden, conforme a RN-01 y RN-20, publicando MSG-27: "Comando fuera del alcance del conector: {tipo}. El canal de entrada admite únicamente consultas de sólo lectura. Rechazado y registrado." **La cola de entrada del MVP no es un camino de ruteo de órdenes.**
+8. **[Validación]** Un comando ya procesado —identificado por su ID de comando— no se vuelve a ejecutar ante *redelivery* de MQ, conforme a RN-05. Reejecutar una consulta masiva por un reenvío consumiría el cupo de caudal sin necesidad.
+9. **[Validación]** El conector aplica control de caudal conforme a RN-08: si llegan más comandos de consulta masiva que el límite de 1 por segundo de A3, los encola y registra MSG-18.
+10. **[Error]** Si la sesión FIX está caída o A3 rechaza la consulta, el conector responde con un evento de error **correlacionado con el comando**; nunca lo descarta en silencio, conforme a RN-11.
+
+#### Escenarios BDD
+
+```gherkin
+Característica: Consumo de comandos de consulta desde MQ
+  Como sistema consumidor de BBVA quiero solicitar consultas por MQ
+  para obtener información del mercado en el momento en que la necesito.
+
+  Escenario: Comando de consulta masiva de estado
+    Dado que la sesión FIX está "Conectada"
+    Cuando BBVA publica en la cola de entrada un comando de consulta masiva de estado con identificador "CMD-3391"
+    Entonces el conector emite un Order Mass Status Request a A3
+    Y publica los estados recibidos correlacionados con el identificador "CMD-3391"
+
+  Escenario: Comando de consulta de operaciones por cuenta
+    Cuando BBVA publica un comando de consulta de operaciones concertadas para una cuenta
+    Entonces el conector emite un Trade Capture Report Request por cuenta con TrdType 0
+    Y publica las operaciones recibidas correlacionadas con el comando
+
+  Escenario: Intento de enviar una orden por el canal de consultas
+    Cuando BBVA publica en la cola de entrada un comando de alta de orden
+    Entonces el conector no emite ningún mensaje FIX hacia A3
+    Y rechaza el comando publicando MSG-27: "Comando fuera del alcance del conector: {tipo}. El canal de entrada admite únicamente consultas de sólo lectura. Rechazado y registrado."
+    Y genera una alerta para el equipo de operaciones
+
+  Escenario: Comando inválido
+    Cuando BBVA publica un comando de consulta sin el identificador de cuenta obligatorio
+    Entonces el conector lo deriva a la cola de error
+    Y publica MSG-26: "Comando de consulta inválido: {motivo}. Derivado a {colaError}."
+
+  Escenario: Reentrega del mismo comando por MQ
+    Dado que el comando "CMD-3391" ya fue ejecutado
+    Cuando MQ lo reentrega por redelivery
+    Entonces el conector no vuelve a consultar a A3
+    Y registra MSG-12: "Mensaje FIX duplicado descartado (secuencia {seq}, identificador {id}). No se publica en MQ."
+
+  Escenario: Consulta solicitada con la sesión caída
+    Dado que la sesión FIX está "Desconectada"
+    Cuando BBVA publica un comando de consulta masiva de estado
+    Entonces el conector responde con un evento de error correlacionado con el comando
+    Y el comando no se descarta en silencio
+```
+
+#### Fuera de alcance
+
+- **Instrucciones de orden** (alta, modificación, cancelación): son `FIX-4.01` a `FIX-4.04`, Épica 4. El criterio 7 las rechaza explícitamente.
+- Suscripciones de market data solicitadas por MQ: Épica 5.
+
+#### Notas / preguntas abiertas
+
+- **Esta historia es alcance nuevo respecto del backlog borrador y del plan de trabajo**, y **no está estimada**. Su incorporación debe reflejarse en la re-estimación de la Épica 2.
+- El criterio 7 es deliberado: abrir un canal de entrada en el MVP crea la tentación de usarlo como atajo para rutear órdenes antes de que existan la idempotencia de escritura y los controles de riesgo de la Épica 4. El rechazo explícito y alertado es el resguardo.
+- **Pendiente de definir con el negocio:** el catálogo concreto de comandos y sus parámetros, que se cierra junto con el contrato MQ en `T-03`.
+
+#### Chequeo INVEST
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ⚠️ Depende de `FIX-2.05` y `FIX-2.06` para entregar valor | ✅ | ✅ | ❌ **Sin estimar — alcance nuevo** | ✅ | ✅ |
 
 ---
 
@@ -1537,7 +1644,7 @@ Característica: Correlación de punta a punta
 |----|-----------|-------|----------|--------------------|
 | **T-01** | US 20 | Configuración del ambiente intive | Disponer del ambiente de desarrollo y prueba propio: WebSphere Liberty y colas MQ | El conector arranca en el ambiente, la conexión FIX contra reMarkets se establece y las colas MQ están accesibles. Estimación del input: **8–13 SP** |
 | **T-02** | US 21 | Soporte a la configuración del ambiente BBVA | Acompañar a BBVA en la preparación de su ambiente (Liberty, MQ, red hacia A3) | El ambiente BBVA está operativo y validado con una conexión de prueba. **Ejecuta BBVA**; el equipo asigna capacidad de soporte. Estimación del input: **13–21 SP** |
-| **T-03** | — | Definición de los contratos de mensajería MQ | Acordar el contrato de los eventos que el conector publica: estados de orden, operaciones concertadas, estado de sesión, estado de mercado, errores. Incluye el formato del `correlation ID` y el catálogo §5 | Contratos versionados y **aprobados por arquitectura de BBVA**. No cambian entre el fin de la Épica 1 y el fin de la Épica 3 |
+| **T-03** | — | Definición de los contratos de mensajería MQ | Acordar el contrato de **salida** (estados de orden, operaciones concertadas, estado de sesión, estado de mercado, errores) y el de **entrada** (catálogo de comandos de consulta y sus parámetros, según `S-07`). Incluye el formato del `correlation ID`, el catálogo §5 y el **bloque de instrumento opcional y versionado** de `R-13` | Contratos versionados y **aprobados por arquitectura de BBVA**. No cambian entre el fin de la Épica 1 y el fin de la Épica 3 |
 | **T-04** | — | Estrategia de observabilidad, logging y retención | Definir métricas, alertas, canal de alertado, formato de log y política de retención de la auditoría | Documento aprobado; herramientas identificadas; comportamiento ante indisponibilidad de la auditoría decidido |
 | **T-05** | — | **Alta de la sesión Drop Copy y mapeo de cuentas con A3** | Solicitar a A3 el usuario FIX con **perfil Drop Copy de sólo lectura** y acordar el conjunto de IDs de cuentas y de operadores de BBVA que quedarán asociados a la sesión, para reMarkets y para producción. Incluye coordenadas, CompIDs y credenciales | Usuario Drop Copy creado, mapeo de cuentas confirmado por A3, cuenta de reMarkets creada en `remarkets.primary.ventures` y **conexión de prueba con recepción efectiva de un Execution Report duplicado**. ⚠️ Definir con el negocio el conjunto de cuentas es precondición: determina qué eventos verá el conector. **Bloquea `FIX-2.04`** |
 | **T-06** | — | **Integración con la API de credenciales del banco** y procedimiento de actualización | Relevar el contrato de la **API del banco que entrega las credenciales de A3** —endpoint, autenticación del conector contra ella, formato de respuesta, códigos de error, política de caché y comportamiento ante indisponibilidad— e implementar su consumo. Documentar además el procedimiento administrativo de actualización de contraseña, que es fuera de banda conforme a `S-02` | Contrato de la API relevado y consumido: el conector obtiene la credencial al abrir sesión y al reanudar tras *hard stop*, la mantiene sólo en memoria y nunca la persiste. Procedimiento documentado con los dos caminos de actualización: en reMarkets, solicitud al soporte de Primary; en producción, consola administrativa de Primary gestionada por la ALyC. Incluye el **runbook de salida del *hard stop*** de RN-18: actualizar credencial en el sistema del banco → acción manual de reanudación → el conector la relee de la API. ⚠️ **Dependencia de disponibilidad en el arranque:** definir el comportamiento si la API no responde a las 09:30. Ver `S-17` |
@@ -1575,7 +1682,7 @@ Consolida la columna `Obs` del Excel, las contradicciones detectadas entre docum
 | **S-04** | Análisis del PO | **¿La normalización de ER y TCR requiere enriquecer con datos del instrumento?** Ambos mensajes traen `Symbol` como string | Si la respuesta es sí, hay que **adelantar `FIX-5.05` (SecurityList) al MVP**. Es sólo lectura, así que no rompe el corte, pero agrega alcance | Definirlo al cerrar los contratos MQ en `T-03`. Recomendación: si los consumidores de BBVA necesitan más que el símbolo (moneda, tipo, vencimiento, segmento), adelantar `SecurityList` con carga diaria en memoria | ⏳ **Sin definir (2026-09-16): «no sabemos».** Es una incógnita legítima en esta etapa, pero **no puede quedar abierta hasta la implementación**, porque afecta el contrato MQ, que según OBJ-3 del PRD no debe cambiar entre el fin de la Épica 1 y el fin de la Épica 3. **Propuesta del PO para no quedar bloqueados:** diseñar el evento normalizado con un **bloque de instrumento opcional y versionado**, de modo que incorporar el enriquecimiento con `SecurityList` más adelante sea una **extensión aditiva** del contrato y no un cambio que rompa a los consumidores. Con esa previsión, la decisión se puede postergar sin costo de retrabajo hasta tener los consumidores identificados. Ver `R-13` |
 | **S-05** | ROE A3 | **¿Se puede suscribir a Trade Capture Reports en lugar de consultarlos?** El ROE documenta `SubscriptionRequestType` (263) sólo para la variante de *allocations y giveups*, que está fuera de alcance | Define si el flujo de TCR es *pull* periódico o *push*. Cambia el diseño de `FIX-2.05` | Consultar a A3. Asumir *pull* periódico como diseño base, que es lo que el ROE documenta para operaciones regulares | ✅ **Resuelto (2026-09-16): sólo consulta.** No hay suscripción a Trade Capture Reports. El flujo es exclusivamente *pull*, como documenta el ROE para operaciones regulares. → Queda descartado todo diseño de `FIX-2.05` basado en recepción no solicitada de TCR |
 | **S-06** | Análisis del PO | **¿Con qué criterio y periodicidad se consultan las operaciones concertadas?** ¿Por cuenta al cierre de jornada, por símbolo bajo demanda, ambas? ¿La reconciliación de `FIX-2.07` alcanza también a las operaciones o sólo a las órdenes? | Sin esto, `FIX-2.05` no tiene definido su disparador | Definir con los referentes de negocio de BBVA en la Épica 1. Propuesta base: consulta por cuenta al cierre de jornada más consulta bajo demanda por símbolo | ✅ **Resuelto (2026-09-16): consulta asincrónica a demanda**, sin periodicidad fija. Se descarta la propuesta de consulta programada al cierre de jornada. → En `FIX-2.05` el criterio de disparo deja de ser temporal y pasa a ser **por demanda**; el conector no planifica consultas por horario. Queda por cerrar **quién origina esa demanda**, que es `S-07` |
-| **S-07** | SUP-04 | **¿Quién dispara las consultas en la Fase 1?** Con el MVP puramente saliente, no hay cola de entrada | Define si hace falta implementar el consumo MQ en el MVP | Recomendación: el conector dispara sus consultas según su propia planificación configurable. El sentido de entrada se abre recién en la Épica 4, conforme a SUP-04 | ⚠️ **Respuesta recibida (2026-09-16): «A3» — requiere una aclaración de una línea.** La respuesta no responde literalmente a la pregunta: A3 no puede disparar una consulta que emite el conector. Las dos lecturas posibles son **(a)** que el disparo sea **reactivo a los eventos que A3 envía** por la sesión Drop Copy —el conector consulta cuando un evento recibido lo amerita—, coherente con «asincrónico a demanda» de `S-06`; o **(b)** que la respuesta se refiera a que **A3 responde de forma asincrónica**, que es una característica del protocolo y no un disparador. **Interpretación aplicada: lectura (a)**, disparo reactivo a eventos, sin planificación horaria y sin cola de entrada, lo que preserva SUP-04. **Confirmar antes de cerrar el diseño de `FIX-2.05` y `FIX-2.06`:** decide si hay que construir un planificador, un canal de entrada desde BBVA, o ninguno de los dos |
+| **S-07** | SUP-04 | **¿Quién dispara las consultas en la Fase 1?** Con el MVP puramente saliente, no hay cola de entrada | Define si hace falta implementar el consumo MQ en el MVP | Recomendación: el conector dispara sus consultas según su propia planificación configurable. El sentido de entrada se abre recién en la Épica 4, conforme a SUP-04 | ✅ **Resuelto (2026-09-16): las dispara BBVA enviando un comando por MQ.** → **Es un cambio de alcance:** el MVP incorpora una **cola de entrada**, lo que **supera SUP-04**. Se agrega la historia `FIX-2.15` (alcance nuevo, sin estimar) y la regla **RN-20**, que acota el canal a **comandos de sólo lectura** y obliga a rechazar y alertar todo intento de instrucción de orden. El corte del MVP se preserva: un comando de consulta sólo deriva en `35=H`, `35=AF` o `35=AD`, ninguno de los cuales modifica el mercado |
 | **S-08** | Manual de Conectividad A3 | **¿La operatoria del conector califica como acceso DMA según A3?** | Si califica, la Épica 4 exige un sistema homologado de control de riesgo *pre-trade* (`FIX-4.07`), que puede ser un proyecto en sí mismo | Aclararlo con A3 y con cumplimiento de BBVA **durante la Épica 1**, aunque el impacto sea en la Épica 4. Conocerlo temprano cambia la planificación del año | ⏳ **Pendiente (2026-09-16).** El PO mantiene la propuesta y la deja a confirmar con el equipo técnico o con el negocio durante la Épica 1. Registrado como nota en las historias afectadas |
 | **S-09** | Manual de Conectividad A3 | **¿Qué gateway de market data necesita BBVA?** FIX-PTP entrega Full Refresh con profundidad 10 cada 500 ms; FIX-PTP-HR llega a 50 ms; FIX-PTP-LL da *incremental refresh* pero **sólo vía colocation** | Aunque Market Data es Épica 5, la elección condiciona la conectividad contratada y posiblemente la certificación | Definirlo en la Épica 1 aunque se implemente en la 5. Si alcanza con FIX-PTP, no hay decisión de infraestructura pendiente | ⏳ **Pendiente (2026-09-16).** El PO mantiene la propuesta y la deja a confirmar con el equipo técnico o con el negocio durante la Épica 1. Registrado como nota en las historias afectadas |
 | **S-10** | Excel, `Obs` de US 4 | **¿Dónde se persisten las secuencias?** El Excel pregunta «Validar con BBVA dónde se persiste (storage?)» y anota «se utiliza file storage» | Define si se necesita Sybase en el MVP o alcanza con archivos | Recomendación: archivos sobre volumen persistente, que es el patrón estándar de los motores FIX (SUP-05). Sybase con *Stored Procedures* por cada mensaje puede afectar el caudal. Confirmar con arquitectura | ✅ **Resuelto (2026-09-16): por archivos, deliberadamente para no impactar la base de datos.** → **Sybase queda fuera del alcance del MVP.** Desaparecen la dependencia de Stored Procedures para el flujo de sesión, el riesgo de caudal asociado y una dependencia de equipo de BBVA |
@@ -1585,7 +1692,7 @@ Consolida la columna `Obs` del Excel, las contradicciones detectadas entre docum
 | **S-14** | Excel, `Obs` de US 23 | **¿La certificación se ejecuta sobre un ambiente separado del de desarrollo?** El Excel anota «se define un ambiente de certificación separado del de intive que es el de desarrollo» | Puede agregar un ambiente no contemplado en la estimación | Confirmar con A3 y con BBVA. Si se requiere, agregarlo a `T-01` y re-estimar | ⏳ **Pendiente (2026-09-16).** El PO mantiene la propuesta y la deja a confirmar con el equipo técnico o con el negocio durante la Épica 1. Registrado como nota en las historias afectadas |
 | **S-15** | Análisis del PO | **¿A3 acepta homologar un alcance parcial sin envío de órdenes ni market data?** Sus criterios de evaluación incluyen explícitamente ambos | **Es el riesgo número uno del compromiso del 31-dic.** Si A3 exige el conjunto completo, la fecha no se sostiene con este alcance | Iniciar el contacto en el **sprint 0** y obtener el acuerdo por escrito (`T-14`). Si A3 no lo acepta, escalar de inmediato: la decisión de alcance y fecha vuelve al comité | ✅ **Resuelto (2026-09-16): A3 acepta la homologación parcial**, limitada a la integración de TCR y ER, sin envío de órdenes ni market data. **Queda despejado el riesgo número uno del compromiso del 31-dic.** Resta formalizar el acuerdo por escrito y obtener el paquete de certificación en `T-14` |
 
-| **S-17** | Respuesta del PO del 2026-09-16 | **¿Cuál es el contrato de la API del banco que entrega las credenciales de A3?** Endpoint, método de autenticación del conector contra esa API, formato de respuesta, códigos de error y política de caché | **Bloquea `FIX-2.01`**: sin credenciales no hay sesión. Además introduce una **dependencia de disponibilidad en el arranque**: si la API no responde a las 09:30, el conector no abre sesión y la jornada arranca ciega | Relevar el contrato con el equipo dueño de la API en la Épica 1 (`T-06`). Propuesta de diseño: el conector consulta la API **al abrir la sesión de cada jornada y al reanudar tras un *hard stop***, de modo que una rotación de contraseña se propague sin redesplegar; mantiene la credencial sólo en memoria durante la jornada, nunca en disco ni en logs; y ante indisponibilidad de la API aplica reintento acotado y luego alerta, sin degradar a credenciales almacenadas localmente | ⏳ **Pendiente (2026-09-16).** Emergente de la definición sobre credenciales |
+| **S-17** | Respuesta del PO del 2026-09-16 | **¿Cuál es el contrato de la API del banco que entrega las credenciales de A3?** Endpoint, método de autenticación del conector contra esa API, formato de respuesta, códigos de error y política de caché | **Bloquea `FIX-2.01`**: sin credenciales no hay sesión. Además introduce una **dependencia de disponibilidad en el arranque**: si la API no responde a las 09:30, el conector no abre sesión y la jornada arranca ciega | Relevar el contrato con el equipo dueño de la API en la Épica 1 (`T-06`). Propuesta de diseño: el conector consulta la API **al abrir la sesión de cada jornada y al reanudar tras un *hard stop***, de modo que una rotación de contraseña se propague sin redesplegar; mantiene la credencial sólo en memoria durante la jornada, nunca en disco ni en logs; y ante indisponibilidad de la API aplica reintento acotado y luego alerta, sin degradar a credenciales almacenadas localmente | ✅ **Resuelto parcialmente (2026-09-16): ante indisponibilidad de la API, reintento acotado y alerta crítica, sin abrir sesión y sin degradar a credenciales almacenadas localmente.** Queda pendiente relevar el contrato concreto —endpoint, autenticación, formato de respuesta y códigos de error— en `T-06` |
 | **S-16** | Derivado de `S-01` | **¿El perfil Drop Copy de sólo lectura admite emitir `Order Status Request`, `Order Mass Status Request` y `Trade Capture Report Request`?** La confirmación de `S-01` establece que la sesión es de sólo lectura y recibe eventos duplicados, pero no aclara si además habilita consultas salientes | Si A3 **no** las admite sobre Drop Copy, hay que rediseñar `FIX-2.06`, `FIX-2.05` y la reconciliación de `FIX-2.07` sobre el flujo de eventos duplicados exclusivamente. Cambia el alcance de tres historias del MVP | Consultar a A3 junto con la solicitud del usuario Drop Copy en `T-05`. Es una pregunta de una línea que se responde en la misma gestión. Diseño de contingencia: si sólo hay recepción pasiva, la reconciliación se apoya en la persistencia local del último estado conocido por cuenta más el registro de auditoría | ⏳ **Pendiente (2026-09-16).** Detectado al incorporar la respuesta de `S-01`. A confirmar con A3 en la Épica 1 |
 
 > **Pausa obligatoria (skill):** ejecutada el 2026-09-16. Se resolvieron `S-01`, `S-02`, `S-12` y `S-15`; los once restantes quedaron como pendientes a confirmar con el equipo técnico o el negocio, registrados como notas en las historias afectadas. La resolución de `S-01` hizo emerger un nuevo spike, `S-16`.
@@ -1610,6 +1717,8 @@ Las cuatro respuestas no sólo cerraron spikes: **cambiaron el diseño**. Se dej
 | **`S-05` y `S-06` — TCR sólo por consulta, asincrónica a demanda** | `FIX-2.05` queda confirmada como flujo exclusivamente *pull*, y su criterio de disparo deja de ser temporal: **no hay consulta programada al cierre de jornada**. Se descarta la propuesta base anterior |
 | **`S-07` — «A3»** | ⚠️ Respuesta ambigua. Se aplicó la interpretación de **disparo reactivo a los eventos recibidos**, que preserva SUP-04. **Pendiente de una confirmación de una línea**, porque decide si se construye un planificador, un canal de entrada, o ninguno |
 | **`S-10` — Persistencia por archivos** | Confirmado con el motivo explícito de **no impactar la base de datos**. **Sybase sale del alcance del MVP**, y con él una dependencia de equipo y un riesgo de caudal |
+| **`S-07` — BBVA dispara por MQ** | ⚠️ **Cambio de alcance.** El MVP deja de ser puramente saliente: incorpora una **cola de entrada**. **SUP-04 queda superado** para los comandos de consulta y se mantiene sólo para las instrucciones de orden. Nueva historia **`FIX-2.15`** (alcance nuevo, **sin estimar**), nueva regla **RN-20** y nuevos códigos **MSG-26** y **MSG-27**. El componente «Consumidor MQ» pasa de E4 a **E2**. `T-03` suma el contrato de entrada. El corte se preserva: los comandos sólo derivan en mensajes de consulta |
+| **`S-17` — Indisponibilidad de la API de credenciales** | Confirmado: **reintento acotado y alerta crítica, sin abrir sesión y sin degradar a credenciales locales**. Incorporado a RF-02.1 del PRD y a `T-06` |
 | **`S-04` — «No sabemos»** | Queda sin definir. Para que la indefinición no bloquee el contrato MQ, se propone `R-13`: **bloque de instrumento opcional y versionado**, de modo que el enriquecimiento futuro sea aditivo |
 
 ---
@@ -1683,6 +1792,7 @@ Hallazgos del cruce entre el Excel borrador, la propuesta técnica y la document
 | `FIX-2.05` Publicar operaciones concertadas | `FIX-2.12`, `FIX-2.13`, `FIX-2.14` | `35=AD` ↑, `35=AE` ↓, `35=j` ↓ | Cola de operaciones (MSG-17, MSG-21, MSG-22) | RN-02, RN-04, RN-05, RN-08, RN-12 | 13 |
 | `FIX-2.06` Consultar estado de órdenes | `FIX-2.14` | `35=H` ↑, `35=AF` ↑, `35=8` ↓ | Cola de estados de orden (MSG-16, MSG-18) | RN-01, RN-08, RN-15 | 11 |
 | `FIX-2.07` Reconciliar tras reconectar | `FIX-2.10`, `FIX-2.11`, `FIX-2.13` | `35=AF` ↑, `35=8` ↓ | Eventos de corrección (MSG-14, MSG-15, MSG-16) | RN-05, RN-11 | — |
+| `FIX-2.15` Consumir comandos de consulta | `FIX-2.13`, `FIX-2.14` | `35=H` ↑, `35=AF` ↑, `35=AD` ↑ | Cola de entrada de comandos + respuesta correlacionada (MSG-18, MSG-26, MSG-27) | RN-01, RN-05, RN-08, RN-20 | — |
 | `FIX-2.08` Monitorear la sesión | `FIX-2.12`, `FIX-2.14` | — (estado interno) | Métricas y alertas (MSG-04, MSG-05, MSG-08, MSG-13) | RN-06 | 16 |
 
 ### 12.2 Enablers técnicos
@@ -1709,24 +1819,25 @@ Hallazgos del cruce entre el Excel borrador, la propuesta técnica y la document
 | MSG-12 | `FIX-2.13` |
 | MSG-14, MSG-15, MSG-16 | `FIX-2.07`, `FIX-2.06` |
 | MSG-17, MSG-21, MSG-22 | `FIX-2.05` |
-| MSG-18 | `FIX-2.06` |
+| MSG-18 | `FIX-2.06`, `FIX-2.15` |
+| MSG-26, MSG-27 | `FIX-2.15` |
 | MSG-20, MSG-25 | `FIX-2.01` |
 
-**Sin huérfanos:** los 25 códigos del §5 están referenciados al menos por una historia, y todas las historias de §6 y §7 tienen al menos un código asociado o una justificación de por qué no lo necesitan (`FIX-2.09`, `FIX-2.12` y `FIX-2.14` operan por debajo del nivel de evento publicado).
+**Sin huérfanos:** los 27 códigos del §5 están referenciados al menos por una historia, y todas las historias de §6 y §7 tienen al menos un código asociado o una justificación de por qué no lo necesitan (`FIX-2.09`, `FIX-2.12` y `FIX-2.14` operan por debajo del nivel de evento publicado).
 
 ### 12.4 Conteo final
 
 | Categoría | Cantidad |
 |---|---:|
-| Historias de usuario con tarjeta completa (§6, Épica 2) | **8** |
+| Historias de usuario con tarjeta completa (§6, Épica 2) | **9** |
 | Historias técnicas con tarjeta completa (§7, Épica 2) | **6** |
 | Historias de cabecera (Épicas 4 y 5) | **12** |
 | Tareas técnicas (§8, Épicas 1 y 3) | **20** |
 | Recomendaciones del PO (§10) | **13** |
-| Reglas de negocio transversales (§4) | **19** |
-| Códigos de evento y error (§5) | **25** |
-| Spikes y decisiones (§9) | **17** — 8 resueltos, 9 pendientes |
-| **Total de ítems cargables a backlog** | **59** (8 HU + 6 HT + 12 cabeceras + 20 tareas + 13 recomendaciones) |
+| Reglas de negocio transversales (§4) | **20** |
+| Códigos de evento y error (§5) | **27** |
+| Spikes y decisiones (§9) | **17** — 10 resueltos, 7 pendientes |
+| **Total de ítems cargables a backlog** | **60** (9 HU + 6 HT + 12 cabeceras + 20 tareas + 13 recomendaciones) |
 
 ---
 

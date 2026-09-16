@@ -86,7 +86,19 @@ Cuatro definiciones cerradas que modifican el diseño respecto de la v1.0.0 de e
 | **Trade Capture Report** | **Sólo por consulta**, sin suscripción, y **de forma asincrónica a demanda**, sin periodicidad fija | Queda descartado todo diseño basado en recepción no solicitada de TCR, y también la propuesta anterior de consulta programada al cierre de jornada. El criterio de disparo deja de ser temporal |
 | **Enriquecimiento con datos del instrumento** | **Sin definir todavía** | Para que la indefinición no bloquee el contrato MQ, se diseña el evento normalizado con un **bloque de instrumento opcional y versionado**, de modo que incorporar `SecurityList` más adelante sea una **extensión aditiva** y no un cambio que rompa a los consumidores |
 
-> ⚠️ **Pendiente de una aclaración de una línea:** a la pregunta de **quién dispara las consultas** la respuesta recibida fue «A3», que no responde literalmente al planteo, porque A3 no puede disparar una consulta que emite el conector. La interpretación aplicada es **disparo reactivo a los eventos que A3 envía por la sesión Drop Copy**, coherente con la consulta asincrónica a demanda y sin necesidad de cola de entrada. Conviene confirmarlo antes de cerrar el diseño, porque decide si hay que construir un planificador, un canal de entrada desde BBVA, o ninguno de los dos.
+### Tercera definición — 2026-09-16: quién dispara las consultas
+
+> ⚠️ **Cambio de alcance del MVP.** Las consultas de estado y de operaciones concertadas **las dispara BBVA enviando un comando por MQ**. En consecuencia, **el MVP deja de ser puramente saliente**: incorpora una **cola de entrada**, que hasta ahora estaba prevista recién para la Épica 4.
+
+**Qué cambia:**
+
+- Se agrega una historia nueva a la Épica 2 —consumo de comandos de consulta desde MQ— que **no estaba en el backlog borrador ni en el plan de trabajo, y no está estimada**. Debe reflejarse en la re-estimación de la Épica 2.
+- El contrato MQ deja de ser sólo de salida: hay que definir también el **catálogo de comandos de entrada** y sus parámetros.
+- El conector deja de necesitar un planificador horario: no consulta por reloj, consulta cuando se lo piden.
+
+**El corte del MVP se preserva, pero necesita un resguardo explícito.** Un comando de consulta sólo deriva en `35=H`, `35=AF` o `35=AD`, ninguno de los cuales modifica el mercado, así que la regla del corte sigue intacta. Lo que cambia es la **superficie de riesgo**: existir un canal de entrada crea la tentación de usarlo como atajo para rutear órdenes antes de que existan la idempotencia de escritura y los controles de riesgo de la Épica 4. Por eso se incorpora una regla que obliga al conector a **rechazar, registrar y alertar** todo comando que no sea de consulta, sin emitir ningún mensaje FIX.
+
+**Consecuencia sobre la indisponibilidad de la API de credenciales:** confirmado que ante una API caída el conector aplica **reintento acotado y alerta crítica, sin abrir sesión y sin degradar a credenciales almacenadas localmente**, que es lo que la API viene a evitar.
 
 **Consecuencia sobre la gestión de riesgos:** el riesgo R-1 del §12.2 (los tiempos de A3 no dependen del equipo) se reduce significativamente en su componente de **alcance**, porque la aceptación ya está dada. Persiste en su componente de **calendario**: los tiempos de ejecución de la certificación siguen dependiendo de A3.
 
@@ -143,7 +155,7 @@ Habilitar a BBVA a **subir a producción la integración con A3** con homologaci
 
 ### No-objetivos explícitos de la Fase 1
 
-- No se envían órdenes al mercado, ni propias ni de terceros.
+- No se envían órdenes al mercado, ni propias ni de terceros. La cola de entrada del MVP admite **exclusivamente comandos de consulta**; toda instrucción de orden se rechaza y se alerta.
 - No se consume *market data* en flujo continuo.
 - No se implementa control de riesgo *pre-trade*, *kill switch* ni *cancel on disconnect*.
 - No se implementan *allocations*, *giveups*, *block trades* ni reporte de posiciones.
@@ -174,7 +186,8 @@ Habilitar a BBVA a **subir a producción la integración con A3** con homologaci
 | **Adaptador A3** | Particularidades del diccionario de A3 respecto del estándar FIX 5.0 SP2 | 2 |
 | **Motor de normalización** | Traduce mensajes FIX al modelo canónico de BBVA | 2 |
 | **Integración MQ (salida)** | Publica eventos normalizados hacia las colas de BBVA | 2 |
-| **Integración MQ (entrada)** | Consume instrucciones desde BBVA | **4** (en Fase 1 solo se consumen comandos de consulta, si se decide exponerlos) |
+| **Integración MQ (entrada)** | Consume **comandos de consulta** desde BBVA (sólo lectura) | **2** ✅ confirmado 16-09 |
+| **Integración MQ (instrucciones de orden)** | Consume instrucciones de alta, modificación y cancelación | **4** |
 | **Persistencia de sesión** | Números de secuencia entrantes y salientes, resistentes a reinicio | 2 |
 | **Auditoría** | Log *raw* de todo mensaje FIX enviado y recibido, con *timestamp* y sesión | 2 |
 | **Observabilidad** | Métricas, estado de sesión, alertas | 2 |
@@ -267,7 +280,7 @@ Igual de importante que el corte de mensajes FIX:
 | Flujo MQ | Épica | Detalle |
 |---|---|---|
 | **Conector → BBVA (publicación)** | **2 — MVP** | Eventos de estado de orden derivados de ER, operaciones ejecutadas derivadas de TCR, estado de sesión, estado de mercado, y errores. **Este contrato se define completo en la Épica 1 y no cambia en la Épica 4** |
-| **BBVA → Conector (consumo de comandos de consulta)** | **2 — MVP, opcional** | Solicitudes de reconciliación o de consulta de trades. Es *pull* iniciado por BBVA pero sigue siendo lectura. Su inclusión se decide en la Épica 1 según los casos de uso reales |
+| **BBVA → Conector (consumo de comandos de consulta)** | **2 — MVP** ✅ confirmado 16-09 | Comandos de consulta de estado de órdenes y de operaciones concertadas. Es *pull* iniciado por BBVA pero sigue siendo lectura: sólo deriva en `35=H`, `35=AF` o `35=AD`. ⚠️ **El canal admite exclusivamente comandos de sólo lectura**: toda instrucción de orden se rechaza, se registra y se alerta |
 | **BBVA → Conector (instrucciones de orden)** | **4** | Alta, cancelación y modificación de órdenes. Es el sentido que abre el riesgo: requiere idempotencia, deduplicación ante *redelivery* de MQ, generación de `ClOrdID` único y máquina de estados |
 
 ### 5.4 Capacidades transversales: dónde corta cada una
@@ -450,6 +463,10 @@ Numerados para trazabilidad con las historias de usuario.
 
 | ID | Requerimiento |
 |---|---|
+| RF-24.1 | El conector consume desde una **cola de entrada** los comandos de consulta que BBVA le envía, y los traduce al mensaje FIX correspondiente |
+| RF-24.2 | El resultado de cada comando se publica correlacionado con el identificador del comando que lo originó |
+| RF-24.3 | El conector **rechaza, registra y alerta todo comando que no sea de consulta**, en particular cualquier intento de alta, modificación o cancelación de orden, sin emitir ningún mensaje FIX hacia A3 |
+| RF-24.4 | Un comando ya procesado no se vuelve a ejecutar ante *redelivery* de MQ |
 | RF-25 | El conector emite `Order Status Request` (`35=H`) para consultar una orden puntual |
 | RF-26 | El conector emite `Order Mass Status Request` (`35=AF`) con `MassStatusReqType=7`, pudiendo filtrar por `SecurityStatus` (0 = todos los estados, 1 = sólo activas) |
 | RF-27 | El conector respeta el límite de A3 de **1 solicitud masiva de estado por segundo** y de **100 solicitudes de estado de orden por segundo**, aplicando control de caudal propio |
@@ -576,7 +593,7 @@ El Excel `ConectorFix_Backlog&Estimation - BBVA.xlsx` es una buena base de parti
 | **S-06** | **¿La operatoria del conector califica como acceso DMA según A3?** | Si califica, la Épica 4 requiere un sistema homologado de control de riesgo *pre-trade*, que puede ser un proyecto en sí mismo | Aclararlo con A3 y con cumplimiento de BBVA durante la Épica 1, aunque el impacto sea en la Épica 4. Conocerlo temprano cambia la planificación del año |
 | **S-07** ✅ **RESUELTO 16-09** | **¿Dónde se persisten las secuencias?** El Excel pregunta «validar con BBVA dónde se persiste (storage?)» y anota «se utiliza file storage» | Define si se necesita Sybase en el MVP o alcanza con almacenamiento en archivos | ✅ **RESUELTO 16-09: por archivos, deliberadamente para no impactar la base de datos.** Sybase queda fuera del alcance del MVP |
 | **S-08** | **¿Qué framework MQ aprueba BBVA?** | Bloquea toda la implementación de publicación del MVP | Definición de BBVA, comprometida en la propuesta para las primeras etapas. Debe cerrarse antes del fin del sprint 1 |
-| **S-09** | **¿Se incluye el sentido MQ → conector para comandos de consulta en el MVP?** (por ejemplo, que BBVA solicite una reconciliación o una consulta de trades) | Define si el MVP tiene una cola de entrada o es puramente saliente | Recomendación: incluirlo sólo si hay un caso de uso real de BBVA. Si no lo hay, el MVP publica de forma autónoma según su propia planificación y el sentido de entrada se abre recién en la Épica 4 |
+| **S-09** ✅ **RESUELTO 16-09** | **¿Se incluye el sentido MQ → conector para comandos de consulta en el MVP?** | Define si el MVP tiene una cola de entrada o es puramente saliente | ✅ **Sí: el MVP incorpora cola de entrada.** BBVA dispara las consultas enviando comandos por MQ. Es **alcance nuevo, no estimado**, que debe reflejarse en la re-estimación de la Épica 2. El canal queda acotado a **comandos de sólo lectura**, con rechazo explícito y alertado de toda instrucción de orden |
 | **S-10** | **¿La API REST asincrónica de consulta de estado entra en el alcance?** Está identificada como capacidad deseable, no mandatoria | Si entra, agrega alcance al MVP; si no, hay que sacarla del backlog | Recomendación: **no incluirla en la Fase 1**. Es deseable, no obligatoria, y su valor depende de decisiones de modelo de información que recién se toman en la Épica 1. Reevaluar al cierre de la Épica 3 |
 
 ### 12.2 Riesgos
