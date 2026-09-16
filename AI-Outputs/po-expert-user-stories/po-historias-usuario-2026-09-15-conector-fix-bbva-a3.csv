@@ -1,0 +1,1365 @@
+﻿"Issue Type";"Issue Key";"Summary";"Description"
+"Story";"FIX-2.01";"Iniciar sesión FIX con A3";"Historia:
+
+```
+Como conector FIX de BBVA
+quiero establecer y autenticar una sesión con el gateway FIX-PTP de A3
+para habilitar el intercambio de mensajes de negocio con el mercado
+```
+
+Valor de negocio:
+
+Es la precondición de todo el proyecto: sin sesión establecida no hay ningún otro flujo posible. Es además el primer criterio que A3 evalúa en la certificación («la conexión exitosa»).
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 1):
+
+```text
+Se establece una conexión TCP.
+Se envía mensaje Logon (35=A).
+Se incluyen credenciales configuradas.
+Se valida la respuesta Logon recibida.
+El estado de la sesión cambia a ""Conectada"".
+Se registra el evento en auditoría.
+```
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector establece una conexión TCP contra el *host* y puerto configurados para el ambiente (`fix.remarkets.primary.com.ar:9876` en pruebas) y envía un `Logon` (`35=A`) con `EncryptMethod` (98) = 0, `HeartBtInt` (108) ≥ 10 conforme a RN-10, `Username` (553), `Password` (554) y `DefaultApplVerID` (1137) = 9 conforme a RN-13.
+2. **[Feliz]** El `Logon` se emite con `SenderCompID`, `TargetCompID`, `OnBehalfOfCompID` y `DeliverToCompID` completados según RN-14, con los valores provistos por A3 para el ambiente.
+3. **[Feliz]** Al recibir el `Logon` de respuesta de A3, el estado de la sesión pasa a **Conectada** y se publica MSG-01: ""Sesión FIX establecida con A3. SenderCompID {sender}, HeartBtInt {n}s, secuencia entrante {seqIn}, saliente {seqOut}.""
+4. **[Feliz]** Las credenciales se obtienen del secret administrado por seguridad de BBVA en el momento de la conexión, y no quedan registradas en ningún log ni traza, conforme a RN-06.
+5. **[Feliz]** El `Logon` enviado y el recibido quedan registrados en formato *raw* conforme a RN-03, con las credenciales enmascaradas.
+6. **[Alternativo]** Si A3 responde con `Logout` (`35=5`), el conector interpreta el rechazo de autenticación, deja la sesión en estado **Desconectada** y publica MSG-02: ""No se pudo establecer la sesión FIX con A3: {motivo}. La sesión queda en estado Desconectada.""
+6.1. **[Error]** El conector **lee el campo `Text` (58) del `Logout`** para determinar la causa. A3 envía allí cadenas explícitas del tipo `""Invalid username or password""`, `""Password expired""` o `""User locked""`.
+6.2. **[Error]** Ante cualquiera de esas causas, el conector aplica **hard stop** conforme a RN-18: **detiene todo reintento automático de conexión** —para no bloquear el usuario por intentos fallidos— y emite alerta crítica con MSG-23: ""A3 rechazó las credenciales: {text}. Se detienen los reintentos automáticos para no bloquear el usuario. Requiere intervención manual de un administrador.""
+6.3. **[Validación]** La salida del *hard stop* requiere una **acción manual explícita** de un administrador tras actualizar la credencial en el secret. El conector no reanuda por sí solo ni por reinicio del proceso.
+7. **[Error]** Si A3 responde con `Reject – Session Level` (`35=3`), el conector registra `RefSeqNum` (45), `RefTagID` (371), `RefMsgType` (372) y `SessionRejectReason` (373), y publica MSG-09: ""A3 rechazó el mensaje de secuencia {refSeqNum}: {sessionRejectReason} — {text}.""
+8. **[Error]** Si no se puede leer el secret de credenciales, el conector no intenta la conexión y publica MSG-19: ""No se pudo leer el secret de credenciales de A3. La sesión no se inicia.""
+9. **[Validación]** Si la solicitud de conexión ocurre fuera de la ventana de 09:30 a 19:00 conforme a RN-07, el conector no intenta conectarse y registra MSG-20: ""Fuera de la ventana de sesión FIX de A3 (09:30 a 19:00). No se intenta conexión.""
+10. **[Validación]** El conector no abre una segunda sesión con la misma combinación de CompIDs conforme a RN-09.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Establecimiento de la sesión FIX con A3
+  Como conector FIX de BBVA quiero autenticarme contra el gateway FIX-PTP
+  para habilitar el intercambio de mensajes de negocio.
+
+  Escenario: Logon exitoso dentro de la ventana operativa
+    Dado que son las 09:35 y el gateway FIX-PTP de A3 está disponible
+    Y que el secret de credenciales de BBVA es legible
+    Cuando el conector establece la conexión TCP y envía un Logon con EncryptMethod 0, HeartBtInt 30 y DefaultApplVerID 9
+    Entonces A3 responde con un Logon
+    Y el estado de la sesión pasa a ""Conectada""
+    Y se publica el evento MSG-01: ""Sesión FIX establecida con A3. SenderCompID {sender}, HeartBtInt {n}s, secuencia entrante {seqIn}, saliente {seqOut}.""
+    Y el Logon enviado y el recibido quedan registrados en el log raw con la contraseña enmascarada
+
+  Escenario: Credenciales inválidas
+    Dado que el conector envía un Logon con credenciales que A3 no reconoce
+    Cuando A3 responde con un Logout
+    Entonces el estado de la sesión queda en ""Desconectada""
+    Y se publica el error MSG-02: ""No se pudo establecer la sesión FIX con A3: {motivo}. La sesión queda en estado Desconectada.""
+    Y la contraseña utilizada no aparece en ningún registro
+
+  Esquema del escenario: Rechazo de credenciales con hard stop
+    Dado que el conector envía un Logon a A3
+    Cuando A3 responde con un Logout cuyo campo Text contiene ""<causa>""
+    Entonces el conector detiene todos los reintentos automáticos de conexión
+    Y emite la alerta crítica MSG-23: ""A3 rechazó las credenciales: {text}. Se detienen los reintentos automáticos para no bloquear el usuario. Requiere intervención manual de un administrador.""
+    Y no vuelve a intentar conectarse aunque el proceso se reinicie
+
+    Ejemplos:
+      | causa                          |
+      | Invalid username or password   |
+      | Password expired               |
+      | User locked                    |
+
+  Escenario: Reanudación tras actualizar la credencial
+    Dado que el conector está en hard stop por credenciales rechazadas
+    Y que un administrador actualizó la contraseña en el secret de BBVA
+    Cuando el administrador ejecuta la acción manual de reanudación
+    Entonces el conector vuelve a intentar el Logon con la credencial actualizada
+
+  Escenario: Sesión establecida en modalidad Drop Copy
+    Dado que A3 configuró la sesión del conector como perfil de sólo lectura asociado a las cuentas de BBVA
+    Cuando el Logon se completa correctamente
+    Entonces se registra el evento MSG-24: ""Sesión establecida en modalidad Drop Copy de sólo lectura, asociada a las cuentas {cuentas}. El conector opera como oyente pasivo.""
+
+  Escenario: Logon malformado rechazado por A3
+    Dado que el conector envía un Logon al que le falta un campo obligatorio
+    Cuando A3 responde con un Reject de nivel de sesión con SessionRejectReason 1
+    Entonces se publica el error MSG-09: ""A3 rechazó el mensaje de secuencia {refSeqNum}: {sessionRejectReason} — {text}.""
+    Y el conector no reintenta con el mismo mensaje
+
+  Escenario: Secret de credenciales no disponible
+    Dado que el proveedor de secretos de BBVA no responde
+    Cuando el conector intenta iniciar la sesión
+    Entonces no se establece la conexión TCP
+    Y se publica el error MSG-19: ""No se pudo leer el secret de credenciales de A3. La sesión no se inicia.""
+
+  Escenario: Intento fuera de la ventana de sesión
+    Dado que son las 20:15
+    Cuando se dispara el inicio de sesión
+    Entonces el conector no intenta conectarse
+    Y se registra el evento MSG-20: ""Fuera de la ventana de sesión FIX de A3 (09:30 a 19:00). No se intenta conexión.""
+```
+
+Fuera de alcance:
+
+- Reconexión automática ante fallo: es `FIX-5.03` (Épica 5, Tolerancia a fallas). El *hard stop* de RN-18 **prevalece** sobre cualquier política de reconexión que se implemente allí.
+- **Cambio o rotación de contraseña por FIX: excluido del producto, no sólo de la Fase 1.** A3 confirmó que la gestión es puramente administrativa y fuera de banda (`S-02`).
+- Conexión a la instancia secundaria de A3 (*disaster recovery*): Épica 5.
+
+Notas / preguntas abiertas:
+
+- **Pendiente de confirmar con el equipo técnico:** el valor de `HeartBtInt` a configurar debe acordarse con A3; el ROE sólo fija el mínimo de 10 segundos.
+- **Pendiente de confirmar con el equipo técnico (`S-03`):** el comportamiento de los números de secuencia al abrir la sesión diaria. El diseño los deja configurables conforme a SUP-14.
+- **Resuelto el 2026-09-16 (`S-02`):** la actualización de la credencial tras un *hard stop* implica que un administrador la modifique manualmente —en reMarkets a través del soporte de Primary, en producción desde las consolas administrativas de Primary— y luego la cargue en el secret o bóveda de BBVA. El procedimiento operativo se documenta en `T-06`.
+
+Chequeo INVEST:
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |"
+"Story";"FIX-2.02";"Mantener viva la sesión FIX";"Historia:
+
+```
+Como conector FIX de BBVA
+quiero intercambiar Heartbeats y Test Requests con A3 de forma automática
+para mantener activa la sesión y detectar tempranamente la pérdida del enlace
+```
+
+Valor de negocio:
+
+Una sesión que se cae sin detección deja a BBVA ciego frente al mercado sin que nadie se entere. Esta historia convierte una falla silenciosa en una alerta.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 2):
+
+```text
+Se envía Heartbeat según HeartBtInt.
+Se responde correctamente a TestRequest.
+Se generan alertas ante ausencia de mensajes.
+```
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector emite un `Heartbeat` (`35=0`) cuando transcurre el intervalo `HeartBtInt` negociado sin haber enviado ningún otro mensaje.
+2. **[Feliz]** Al recibir un `Test Request` (`35=1`) de A3, el conector responde con un `Heartbeat` que contiene en `TestReqID` (112) exactamente el valor recibido.
+3. **[Alternativo]** Si transcurre el intervalo `HeartBtInt` sin recibir ningún mensaje de A3, el conector emite un `Test Request` con un `TestReqID` único y registra MSG-05: ""Sin mensajes de A3 durante {n} segundos. Se emite Test Request {testReqId}.""
+4. **[Error]** Si A3 no responde al `Test Request` dentro del intervalo esperado, el conector considera la sesión caída, la marca como **Desconectada** y publica MSG-04: ""Sesión FIX interrumpida sin Logout. Última actividad registrada: {timestamp}.""
+5. **[Validación]** Los `Heartbeat` y `Test Request` enviados y recibidos quedan registrados conforme a RN-03, pero **no** se publican como eventos de negocio en MQ.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Mantenimiento del enlace de la sesión FIX
+  Como conector FIX de BBVA quiero intercambiar Heartbeats con A3
+  para mantener la sesión activa y detectar la pérdida del enlace.
+
+  Escenario: Emisión de Heartbeat por inactividad propia
+    Dado que la sesión está ""Conectada"" con HeartBtInt de 30 segundos
+    Y que el conector no envió ningún mensaje durante 30 segundos
+    Cuando vence el intervalo
+    Entonces el conector envía un Heartbeat a A3
+    Y el mensaje queda registrado en el log raw
+
+  Escenario: Respuesta a un Test Request de A3
+    Dado que la sesión está ""Conectada""
+    Cuando A3 envía un Test Request con TestReqID ""TRQ-8891""
+    Entonces el conector responde con un Heartbeat que contiene TestReqID ""TRQ-8891""
+
+  Escenario: Ausencia de mensajes de A3
+    Dado que la sesión está ""Conectada"" con HeartBtInt de 30 segundos
+    Y que no se recibe ningún mensaje de A3 durante 30 segundos
+    Cuando vence el intervalo
+    Entonces el conector emite un Test Request con un TestReqID único
+    Y se registra la alerta MSG-05: ""Sin mensajes de A3 durante {n} segundos. Se emite Test Request {testReqId}.""
+
+  Escenario: A3 no responde al Test Request
+    Dado que el conector emitió un Test Request
+    Cuando transcurre el intervalo de espera sin recibir Heartbeat de A3
+    Entonces el estado de la sesión pasa a ""Desconectada""
+    Y se publica la alerta MSG-04: ""Sesión FIX interrumpida sin Logout. Última actividad registrada: {timestamp}.""
+```
+
+Fuera de alcance:
+
+- Reconexión automática tras detectar la caída: es `FIX-5.03`.
+
+Notas / preguntas abiertas:
+
+- El múltiplo de `HeartBtInt` que se tolera antes de declarar la sesión caída es un parámetro a acordar con arquitectura de BBVA; la práctica habitual es 2 intervalos.
+
+Chequeo INVEST:
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |"
+"Story";"FIX-2.03";"Cerrar la sesión FIX de forma controlada";"Historia:
+
+```
+Como conector FIX de BBVA
+quiero ejecutar un Logout controlado al cerrar la jornada
+para finalizar la sesión sin dejar inconsistencias de secuencia
+```
+
+Valor de negocio:
+
+Un cierre sucio obliga a una recuperación costosa al día siguiente y puede dejar mensajes sin procesar. El cierre controlado deja el estado listo para la siguiente jornada.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 3):
+
+```text
+Se envía Logout.
+Se recibe Logout remoto.
+La sesión queda marcada como cerrada.
+Se liberan recursos.
+```
+
+Criterios de aceptación:
+
+1. **[Feliz]** Al cierre de la ventana operativa, o ante una solicitud explícita de cierre, el conector envía un `Logout` (`35=5`) a A3.
+2. **[Feliz]** Al recibir el `Logout` de confirmación de A3, el conector marca la sesión como **Cerrada**, persiste los `MsgSeqNum` entrante y saliente finales, libera los recursos de conexión y publica MSG-03: ""Sesión FIX cerrada de forma controlada. Último MsgSeqNum entrante {seqIn}, saliente {seqOut}.""
+3. **[Alternativo]** Si A3 inicia el `Logout`, el conector responde con su propio `Logout`, persiste las secuencias y cierra de la misma forma.
+4. **[Alternativo]** Si A3 responde al `Logout` con un `Resend Request` (`35=2`), el conector atiende primero el reenvío conforme a `FIX-2.11` y recién después completa el cierre.
+5. **[Error]** Si A3 no confirma el `Logout` dentro del tiempo de espera configurado, el conector cierra la conexión igualmente, persiste las secuencias y publica MSG-04: ""Sesión FIX interrumpida sin Logout. Última actividad registrada: {timestamp}.""
+6. **[Validación]** Una desconexión sin intercambio de `Logout` se interpreta y registra siempre como **condición anormal**, nunca como cierre normal.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Cierre controlado de la sesión FIX
+  Como conector FIX de BBVA quiero ejecutar un Logout controlado
+  para finalizar la sesión sin inconsistencias de secuencia.
+
+  Escenario: Cierre normal al fin de la ventana operativa
+    Dado que la sesión está ""Conectada"" y son las 19:00
+    Cuando el conector envía un Logout y A3 responde con Logout
+    Entonces el estado de la sesión pasa a ""Cerrada""
+    Y los MsgSeqNum entrante y saliente quedan persistidos
+    Y se liberan los recursos de conexión
+    Y se publica el evento MSG-03: ""Sesión FIX cerrada de forma controlada. Último MsgSeqNum entrante {seqIn}, saliente {seqOut}.""
+
+  Escenario: Logout iniciado por A3
+    Dado que la sesión está ""Conectada""
+    Cuando A3 envía un Logout
+    Entonces el conector responde con su propio Logout
+    Y el estado de la sesión pasa a ""Cerrada""
+
+  Escenario: A3 solicita reenvío antes de cerrar
+    Dado que el conector envió un Logout
+    Cuando A3 responde con un Resend Request del rango 1450-1460
+    Entonces el conector retransmite los mensajes solicitados
+    Y recién después completa el cierre de la sesión
+
+  Escenario: A3 no confirma el Logout
+    Dado que el conector envió un Logout
+    Cuando transcurre el tiempo de espera sin respuesta de A3
+    Entonces el conector cierra la conexión y persiste las secuencias
+    Y se publica la alerta MSG-04: ""Sesión FIX interrumpida sin Logout. Última actividad registrada: {timestamp}.""
+```
+
+Fuera de alcance:
+
+- Recuperación del estado operativo tras un reinicio del proceso: es `FIX-5.04`.
+
+Notas / preguntas abiertas:
+
+- Si la sesión se cierra con secuencias que continúan entre jornadas, el valor persistido es el punto de partida del día siguiente. Depende de `S-03`.
+
+Chequeo INVEST:
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |"
+"Story";"FIX-2.04";"Publicar en MQ los estados de orden derivados de Execution Reports";"Historia:
+
+```
+Como sistema consumidor de BBVA
+quiero recibir por MQ cada cambio de estado de las órdenes que A3 informa
+para mantener sincronizada la operatoria interna con la información del mercado
+```
+
+Valor de negocio:
+
+Es el entregable de valor del MVP en el lado de las órdenes: BBVA deja de depender de que un operador mire la pantalla de eTrader para saber qué pasó con una orden, y pasa a tener el estado disponible en sus sistemas de forma automática y auditable.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 12):
+
+```text
+Se publican órdenes aceptadas.
+Se publican órdenes pendientes.
+Se publican órdenes canceladas.
+Se publican órdenes reemplazadas.
+Se conserva el identificador de correlación de la orden original.
+El mensaje publicado cumple el contrato definido con BBVA.
+```
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector consume los `Execution Report` (`35=8`) recibidos de A3 y determina el evento a partir de la combinación de `ExecType` (150) y `OrdStatus` (39).
+2. **[Feliz]** El conector procesa las **seis variantes** que define el ROE de A3: *New* (`ExecType=0`), *Order Canceled Response* (`ExecType=4`), *Order Replaced Response* (`ExecType=5`), *Order Filled / Partially Filled Response* (`ExecType=F`, con `OrdStatus` 1 o 2), *Order Status Response* y *Reject Message Response*.
+2.1. **[Feliz]** El conector procesa los Execution Reports que llegan **no solicitados** por la sesión Drop Copy, que son la fuente principal del MVP conforme a RN-17, además de los que llegan como respuesta a sus propias consultas de `FIX-2.06`.
+2.2. **[Validación]** El conector **no asume que el `ClOrdID` (11) le pertenece**: fue generado por sistemas de terceros —terminales de Primary, sistemas propios de BBVA o plataformas DMA— conforme a RN-17. Lo trata como dato opaco de correlación, sin validar su formato ni asumir su unicidad dentro del espacio de identificadores del conector.
+2.3. **[Validación]** Cuando un Execution Report llega para una orden que el conector nunca vio antes —caso normal en Drop Copy—, se publica igualmente como evento válido. La ausencia de historia previa **no es un error**.
+3. **[Feliz]** El evento normalizado preserva `ClOrdID` (11), `OrigClOrdID` (41), `OrderID` (37), `ExecID` (17), `Account` (1), `Symbol` (55), `Side` (54), `OrdType` (40), `TimeInForce` (59), las cantidades `OrderQty`, `CumQty` (14), `LeavesQty` (151) y `LastQty` (32), los precios `Price` (44), `AvgPx` (6) y `LastPx` (31), y `TransactTime` (60).
+4. **[Feliz]** El mensaje publicado cumple el contrato acordado con arquitectura de BBVA en `T-03` y lleva el `correlation ID` conforme a RN-04, que permite reconstruir la cadena mensaje FIX *raw* → evento normalizado → mensaje MQ.
+5. **[Feliz]** El mensaje FIX de origen queda registrado en formato *raw* conforme a RN-03 **antes** de intentar la publicación.
+6. **[Alternativo]** Un `Execution Report` de tipo *Reject Message Response* se publica como evento de rechazo diferenciado, con el motivo informado por A3, y se registra MSG-11: ""A3 rechazó la orden {clOrdId}: {text}.""
+7. **[Alternativo]** Ante una ejecución parcial (`OrdStatus=1`), el evento publicado incluye tanto la cantidad de esta ejecución (`LastQty`) como la acumulada (`CumQty`) y la pendiente (`LeavesQty`), de modo que el consumidor pueda reconstruir el avance sin inferirlo.
+8. **[Error]** Si la publicación en MQ falla, el conector no descarta el evento: lo deriva a la cola de error configurada y publica MSG-13: ""No se pudo publicar el evento {correlationId} en la cola {cola}: {motivo}. Derivado a {colaError}."" Conforme a RN-11.
+9. **[Validación]** Un `Execution Report` ya procesado —identificado por `ExecID` o por `PossDupFlag=Y`— **no se vuelve a publicar**, conforme a RN-05, y se registra MSG-12: ""Mensaje FIX duplicado descartado (secuencia {seq}, identificador {id}). No se publica en MQ.""
+10. **[Validación]** El conector no infiere ni calcula estados: publica el estado que A3 informa, conforme a RN-15.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Publicación en MQ de los estados de orden informados por A3
+  Como sistema consumidor de BBVA quiero recibir cada cambio de estado de las órdenes
+  para mantener sincronizada la operatoria interna con el mercado.
+
+  Escenario: Execution Report no solicitado de una orden originada en otro sistema
+    Dado que la sesión Drop Copy está ""Conectada"" y asociada a las cuentas de BBVA
+    Y que un operador ingresó una orden desde una terminal de Primary
+    Cuando A3 duplica el Execution Report hacia la sesión del conector sin que este lo haya solicitado
+    Entonces el conector lo publica como evento válido
+    Y no lo trata como error pese a no tener historia previa de esa orden
+    Y conserva el ClOrdID recibido como dato opaco de correlación
+
+  Escenario: Orden aceptada por el mercado
+    Dado que la sesión FIX está ""Conectada""
+    Cuando A3 envía un Execution Report con ExecType 0 y OrdStatus 0 para el ClOrdID ""BBVA-000451""
+    Entonces el conector registra el mensaje raw en auditoría
+    Y publica en la cola de estados un evento de orden aceptada con ClOrdID ""BBVA-000451"", OrderID, ExecID, Symbol, Side, OrderQty y LeavesQty
+    Y el evento lleva un correlation ID que permite recuperar el mensaje FIX de origen
+
+  Escenario: Ejecución parcial
+    Cuando A3 envía un Execution Report con ExecType F y OrdStatus 1, LastQty 30, CumQty 30 y LeavesQty 70
+    Entonces el evento publicado informa la cantidad ejecutada 30, la acumulada 30 y la pendiente 70
+    Y el consumidor no necesita calcular el avance
+
+  Escenario: Orden cancelada
+    Cuando A3 envía un Execution Report con ExecType 4 y OrdStatus 4
+    Entonces el evento publicado indica que la orden quedó cancelada
+    Y conserva el OrigClOrdID de la orden previa de la cadena
+
+  Escenario: Orden rechazada por el mercado
+    Cuando A3 envía un Execution Report de tipo rechazo para el ClOrdID ""BBVA-000452""
+    Entonces se publica un evento de rechazo diferenciado con el motivo informado por A3
+    Y se registra el evento MSG-11: ""A3 rechazó la orden {clOrdId}: {text}.""
+
+  Escenario: Execution Report duplicado tras una recuperación de secuencia
+    Dado que el Execution Report con ExecID ""EX-77120"" ya fue publicado en MQ
+    Cuando A3 lo reenvía con PossDupFlag en Y
+    Entonces el conector no lo vuelve a publicar
+    Y registra el evento MSG-12: ""Mensaje FIX duplicado descartado (secuencia {seq}, identificador {id}). No se publica en MQ.""
+
+  Escenario: Falla la publicación en MQ
+    Dado que la cola de estados no está disponible
+    Cuando el conector intenta publicar un evento de orden
+    Entonces el evento se deriva a la cola de error configurada
+    Y se publica el error MSG-13: ""No se pudo publicar el evento {correlationId} en la cola {cola}: {motivo}. Derivado a {colaError}.""
+    Y el evento no se pierde
+```
+
+Fuera de alcance:
+
+- Envío de órdenes que generen estos Execution Reports: Épica 4, conforme a RN-01.
+- Manejo de `Order Cancel Reject` (`35=9`): sólo tiene sentido si el conector emite `35=F` o `35=G`, que es Épica 4.
+- Enriquecimiento del evento con datos del instrumento más allá del `Symbol`: depende de `S-04`.
+
+Notas / preguntas abiertas:
+
+- La estimación del Excel (3–5 SP) contempla una sola variante. Con las seis variantes del ROE, más la normalización y la deduplicación, corresponde re-estimar.
+- **Resuelto el 2026-09-16 (`S-01`):** el origen del tráfico es la sesión **FIX Drop Copy**. A3 asocia la sesión a un conjunto de IDs de cuentas o de operadores y duplica en tiempo real los Execution Reports de esas cuentas. En homologación, el tráfico se genera por inyección de órdenes de un tercero —soporte de Primary, o el propio equipo desde el Trader de reMarkets— sobre cuentas espejo mapeadas a la sesión.
+- **Pendiente de confirmar con el negocio:** el conjunto de cuentas y de operadores de BBVA que deben quedar asociados a la sesión Drop Copy. Es el insumo de `T-05` y condiciona qué eventos verá el conector.
+- **Pendiente de confirmar con el equipo técnico (`S-04`):** si el evento publicado necesita enriquecerse con datos del instrumento más allá del `Symbol`.
+
+Chequeo INVEST:
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ✅ | ✅ | ✅ | ✅ | ⚠️ Conviene partir por variante de `ExecType` si no entra en un sprint | ✅ |"
+"Story";"FIX-2.05";"Publicar en MQ las operaciones concertadas obtenidas por Trade Capture Report";"Historia:
+
+```
+Como sistema consumidor de BBVA
+quiero recibir por MQ las operaciones ya concertadas en A3 para nuestras cuentas
+para conciliar la operatoria y alimentar los procesos internos posteriores a la negociación
+```
+
+Valor de negocio:
+
+El Execution Report informa qué le pasó a una orden; el Trade Capture Report informa **qué operaciones quedaron efectivamente concertadas**. Es la vista que necesitan los procesos posteriores a la negociación, y es lo que permite conciliar contra el mercado sin depender de reportes manuales.
+
+Escenarios fuente:
+
+> El Excel **no aporta** historia Connextra, criterios de aceptación ni observaciones para esta fila. Es la única historia del backlog borrador en esa condición, y es precisamente la que da nombre al MVP (ver §11, observación O-1). Los criterios siguientes se elaboraron desde cero a partir del ROE FIX 5.0 de A3, sección *Post Trade Messages*.
+
+```text
+(Columnas Details, Acc Crit. y Obs vacías en el input)
+```
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector emite un `Trade Capture Report Request` (`35=AD`) con `TradeRequestID` (568) único, `TradeRequestType` (569) = 1 (*MatchedTradesMatchingCriteria*) y `TrdType` (828) = 0 (*Regular Trade*), conforme a RN-02.
+2. **[Feliz]** El conector soporta la consulta **por símbolo**, completando `Symbol` (55), y la consulta **por cuenta**, completando el bloque `Parties` con los roles que exige A3: `PartyRole` 1 (*Executing Firm* — código CNV del agente de negociación), 3 (*Client ID*), 4 (*Clearing Firm* y *Executing Trader*), 76 (*Desk ID*) y 24 (*Customer Account*), todos con `PartyIDSource` (447) = `D`.
+3. **[Feliz]** El conector consume los `Trade Capture Report` (`35=AE`) de respuesta y maneja el **encadenamiento de reportes** usando `TotNumTradeReports` (748) y `LastRptRequested` (912), sin dar por cerrada la consulta hasta recibir el último mensaje.
+4. **[Feliz]** Cada operación normalizada preserva `TradeReportID` (571), `TradeRequestID` (568), `TrdMatchID` (880), `LastPx` (31), `LastQty` (32), `Side` (54), `Account` (1), `Symbol` (55), `TradeDate` (75) y `TransactTime` (60), y se publica en la cola acordada con el `correlation ID` conforme a RN-04, registrando MSG-21: ""Operación concertada {tradeReportId} publicada: {symbol}, {side}, {lastQty} a {lastPx}.""
+5. **[Feliz]** El mensaje FIX de origen queda registrado en formato *raw* conforme a RN-03.
+6. **[Alternativo]** Si A3 responde sin operaciones para los criterios solicitados, el conector cierra la consulta como completada y registra MSG-17: ""A3 no reporta operaciones concertadas para los criterios solicitados.""
+7. **[Alternativo]** Si el reporte incluye `SecondaryTrdType` (855) = 9, la operación se marca como concertada en fase CPX y el evento publicado lo refleja.
+8. **[Error]** Si A3 responde con `Business Message Reject` (`35=j`) a la solicitud, el conector registra `BusinessRejectReason` (380) y publica MSG-10: ""A3 rechazó el mensaje {refMsgType}: {businessRejectReason} — {text}.""
+9. **[Validación]** Todo `Trade Capture Report` con `TrdType` distinto de 0 —operaciones de bloque, *allocations*, *giveups*, operaciones de piso o RFQ— **se registra en auditoría y no se publica en MQ**, conforme a RN-02, con MSG-22: ""Trade Capture Report con TrdType {trdType} fuera del alcance del conector. Registrado, no publicado.""
+10. **[Validación]** Una operación ya publicada, identificada por `TradeReportID`, no se vuelve a publicar conforme a RN-05.
+11. **[Validación]** El conector respeta el límite de caudal de A3 conforme a RN-08 al emitir solicitudes sucesivas.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Obtención y publicación de operaciones concertadas en A3
+  Como sistema consumidor de BBVA quiero recibir las operaciones ya concertadas
+  para conciliar la operatoria y alimentar los procesos posteriores a la negociación.
+
+  Escenario: Consulta de operaciones por cuenta con resultados
+    Dado que la sesión FIX está ""Conectada""
+    Y que el conector tiene configurados los códigos CNV de BBVA
+    Cuando emite un Trade Capture Report Request por cuenta con TradeRequestType 1 y TrdType 0
+    Y A3 responde con tres Trade Capture Report, el último con LastRptRequested en Y
+    Entonces el conector publica tres eventos de operación concertada en la cola acordada
+    Y para cada uno se registra el evento MSG-21: ""Operación concertada {tradeReportId} publicada: {symbol}, {side}, {lastQty} a {lastPx}.""
+    Y la consulta se marca como completada recién al recibir el último reporte
+
+  Escenario: Consulta por símbolo sin operaciones
+    Cuando el conector emite un Trade Capture Report Request por el símbolo ""DLR/DIC26""
+    Y A3 responde sin operaciones para ese criterio
+    Entonces la consulta se cierra como completada
+    Y se registra el evento MSG-17: ""A3 no reporta operaciones concertadas para los criterios solicitados.""
+
+  Escenario: Reporte de operación de bloque fuera de alcance
+    Cuando A3 envía un Trade Capture Report con TrdType 1
+    Entonces el conector no publica el mensaje en MQ
+    Y lo registra en auditoría con MSG-22: ""Trade Capture Report con TrdType {trdType} fuera del alcance del conector. Registrado, no publicado.""
+
+  Escenario: Solicitud rechazada por A3
+    Cuando el conector emite un Trade Capture Report Request con un bloque Parties incompleto
+    Y A3 responde con un Business Message Reject con BusinessRejectReason 5
+    Entonces se publica el error MSG-10: ""A3 rechazó el mensaje {refMsgType}: {businessRejectReason} — {text}.""
+
+  Escenario: Operación ya publicada que vuelve a llegar
+    Dado que la operación con TradeReportID ""TCR-40218"" ya fue publicada
+    Cuando A3 la vuelve a reportar en una consulta posterior
+    Entonces el conector no la publica de nuevo
+    Y registra el evento MSG-12: ""Mensaje FIX duplicado descartado (secuencia {seq}, identificador {id}). No se publica en MQ.""
+```
+
+Fuera de alcance:
+
+- *Block trades* (`TrdType=1`), *allocations* y *giveups* (`TrdType=1001/1002`), `TradeCaptureReportAck` (`35=AR`), `AllocationInstruction` (`35=J`), `Confirmation` (`35=AK`) y reporte de posiciones (`35=AN`/`35=AP`): fuera del alcance del proyecto, conforme a SUP-02.
+- Suscripción continua a TCR: el ROE sólo documenta `SubscriptionRequestType` para la variante de *allocations y giveups*, que está fuera de alcance. Ver `S-05`.
+
+Notas / preguntas abiertas:
+
+- **Esta historia no tenía ningún contenido en el backlog borrador.** Los criterios se derivaron del ROE de A3 y **quedan pendientes de validación funcional con los referentes de negocio de BBVA**.
+- **Pendiente de confirmar con el negocio (`S-06`):** la periodicidad y los criterios de las consultas. ¿Por cuenta al cierre de jornada? ¿Por símbolo bajo demanda? ¿Ambas? La propuesta base es consulta por cuenta al cierre de jornada más consulta bajo demanda por símbolo.
+- **Pendiente de confirmar con A3 (`S-05`):** si se puede suscribir a Trade Capture Reports en lugar de consultarlos. El ROE documenta `SubscriptionRequestType` sólo para *allocations y giveups*, que está fuera de alcance. El diseño base asume *pull* periódico.
+- **Pendiente de confirmar con A3 (`S-16`):** que el perfil Drop Copy de sólo lectura admita emitir `Trade Capture Report Request`. Si no lo admitiera, los TCR llegarían únicamente como eventos duplicados y esta historia se simplificaría a consumo pasivo.
+
+Chequeo INVEST:
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ✅ | ⚠️ Depende de `T-07` (códigos CNV de BBVA) | ✅ | ⚠️ El Excel no la estimó con criterios; re-estimar | ⚠️ Candidata a partir en «por símbolo» y «por cuenta» | ✅ |"
+"Story";"FIX-2.06";"Consultar el estado de las órdenes en A3";"Historia:
+
+```
+Como sistema consumidor de BBVA
+quiero consultar en A3 el estado conocido de una orden o del conjunto de órdenes
+para verificar la situación real en el mercado sin depender de haber recibido todos los eventos
+```
+
+Valor de negocio:
+
+Es la red de seguridad del flujo de eventos: si un evento se perdió o llegó fuera de orden, la consulta permite recuperar la verdad desde A3. Es además el insumo de la reconciliación tras reconectar.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 11):
+
+```text
+Se muestran estados FIX.
+Se exponen timestamps.
+Se muestran fills parciales.
+```
+
+> Observación literal del Excel (`Obs`, US 11):
+
+```text
+explicitar que fix es asincronico, la consulta devuelve el estado de fix, no enecesariaente el de la orden (no es un OMS)
+```
+
+> **Reescritura del PO:** el conector no tiene interfaz de usuario, por lo que «se muestran» se reinterpreta como «se publican en MQ». La observación del Excel se elevó a regla transversal RN-15.
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector emite un `Order Status Request` (`35=H`) para consultar una orden puntual, referenciando su `ClOrdID` (11).
+2. **[Feliz]** El conector emite un `Order Mass Status Request` (`35=AF`) con `MassStatusReqID` (584) único y `MassStatusReqType` (585) = 7 (*Status for all orders*), pudiendo acotar por `Account` (1), por bloque `Instrument` o por `SecurityGroup` (1151).
+3. **[Feliz]** El conector controla el alcance de la consulta masiva mediante `SecurityStatus` (965): 1 para órdenes activas, 0 para todos los estados. Si no se envía, A3 asume 1.
+4. **[Feliz]** Las respuestas llegan como `Execution Report` de tipo *Order Status Response* y se procesan y publican conforme a `FIX-2.04`, correlacionadas con el `MassStatusReqID` de la solicitud.
+5. **[Feliz]** El conector reconoce el cierre de la respuesta masiva mediante `LastRptRequested` (912) y no da la consulta por completa hasta recibirlo.
+6. **[Alternativo]** Si A3 responde con la variante *Order Status Response – No orders*, el conector cierra la consulta como completada y registra MSG-16: ""Reconciliación completada: A3 no reporta órdenes para los criterios solicitados.""
+7. **[Error]** Si A3 rechaza la solicitud con `Business Message Reject` (`35=j`), se publica MSG-10: ""A3 rechazó el mensaje {refMsgType}: {businessRejectReason} — {text}.""
+8. **[Validación]** El conector **no emite más de una solicitud masiva por segundo**, conforme a RN-08. Si se solicitan consultas por encima del límite, las encola y registra MSG-18: ""Límite de solicitudes masivas alcanzado (1 por segundo). La solicitud {requestId} queda encolada.""
+9. **[Validación]** El resultado publicado refleja el estado que A3 informa y se etiqueta explícitamente como «estado informado por el mercado», conforme a RN-15. El conector no lo presenta como estado consolidado de la orden.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Consulta del estado de órdenes en A3
+  Como sistema consumidor de BBVA quiero consultar el estado conocido de las órdenes
+  para verificar la situación real en el mercado.
+
+  Escenario: Consulta masiva de todas las órdenes
+    Dado que la sesión FIX está ""Conectada""
+    Cuando el conector emite un Order Mass Status Request con MassStatusReqType 7 y SecurityStatus 0
+    Y A3 responde con cinco Execution Report de tipo Order Status Response, el último con LastRptRequested en Y
+    Entonces se publican cinco eventos de estado de orden en MQ
+    Y todos quedan correlacionados con el MassStatusReqID de la solicitud
+    Y la consulta se marca como completada al recibir el último reporte
+
+  Escenario: Consulta masiva sin órdenes
+    Cuando el conector emite un Order Mass Status Request
+    Y A3 responde con la variante Order Status Response sin órdenes
+    Entonces la consulta se cierra como completada
+    Y se registra el evento MSG-16: ""Reconciliación completada: A3 no reporta órdenes para los criterios solicitados.""
+
+  Escenario: Control de caudal de consultas masivas
+    Dado que el conector ya emitió una solicitud masiva en el último segundo
+    Cuando se solicita una segunda consulta masiva
+    Entonces la solicitud se encola en lugar de enviarse
+    Y se registra la alerta MSG-18: ""Límite de solicitudes masivas alcanzado (1 por segundo). La solicitud {requestId} queda encolada.""
+
+  Escenario: Consulta puntual de una orden
+    Cuando el conector emite un Order Status Request para el ClOrdID ""BBVA-000451""
+    Entonces A3 responde con un Execution Report de tipo Order Status Response
+    Y el evento publicado indica que el estado proviene de una consulta al mercado
+```
+
+Fuera de alcance:
+
+- La API REST asincrónica de consulta de estado: fuera de la Fase 1 conforme a SUP-10.
+- Consolidación del estado de la orden a partir de múltiples fuentes: el conector no es un OMS, conforme a RN-15.
+
+Notas / preguntas abiertas:
+
+- ⚠️ **Verificación necesaria en la Épica 1:** la sesión del MVP es un **perfil Drop Copy de sólo lectura** (RN-17). Hay que confirmar con A3 que ese perfil **admite emitir `Order Status Request` y `Order Mass Status Request`**. Ambos son de lectura, pero un perfil restringido podría no habilitarlos. Si A3 no los admite sobre Drop Copy, esta historia y la reconciliación de `FIX-2.07` necesitan rediseñarse sobre el flujo de eventos duplicados. Se agrega como `S-16`.
+- **Pendiente de confirmar con el equipo técnico (`S-07`):** quién dispara la consulta en la Fase 1. Con el MVP puramente saliente (SUP-04), la propuesta es que la dispare el propio conector según su planificación configurable, no BBVA.
+
+Chequeo INVEST:
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |"
+"Story";"FIX-2.07";"Reconciliar el estado de órdenes tras restablecer la sesión";"Historia:
+
+```
+Como sistema consumidor de BBVA
+quiero que el conector verifique contra A3 el estado de las órdenes después de cada interrupción de sesión
+para tener la certeza de que lo que conozco coincide con lo que el mercado registra
+```
+
+Valor de negocio:
+
+Es la mitigación directa del riesgo que la propia propuesta técnica identifica como crítico: que tras una interrupción quede una inconsistencia entre lo que BBVA cree y lo que A3 registra. Sin esta historia, la recuperación de secuencias resuelve el protocolo pero no garantiza la coherencia del negocio.
+
+Escenarios fuente:
+
+> No hay escenarios en el input. La capacidad figura como entregable comprometido del plan de trabajo («Recoverability: Persistencia de secuencias, Detección de gaps, Resend Requests, **Reconciliación básica**») pero no tiene historia asociada en el Excel. Escenarios derivados del entregable y del análisis de riesgo RAID de la propuesta técnica.
+
+Criterios de aceptación:
+
+1. **[Feliz]** Tras restablecer una sesión que se interrumpió, y una vez completada la recuperación de secuencias de `FIX-2.11`, el conector emite automáticamente un `Order Mass Status Request` conforme a `FIX-2.06` y registra MSG-14: ""Reconciliación de estado iniciada tras restablecer la sesión. MassStatusReqID {massStatusReqId}.""
+2. **[Feliz]** El conector compara el estado informado por A3 con el último estado que publicó para cada orden.
+3. **[Feliz]** Para cada orden cuyo estado en A3 difiere del último publicado, el conector publica un **evento de corrección** identificado como tal, y al cerrar la comparación registra MSG-15: ""Reconciliación completada: {n} órdenes con estado divergente, publicadas como eventos de corrección.""
+4. **[Alternativo]** Si no hay divergencias, la reconciliación se cierra sin publicar eventos de corrección y se deja constancia en auditoría.
+5. **[Alternativo]** Si A3 no reporta órdenes, se registra MSG-16: ""Reconciliación completada: A3 no reporta órdenes para los criterios solicitados.""
+6. **[Error]** Si la reconciliación no puede completarse —porque la sesión se vuelve a caer o A3 rechaza la solicitud— el conector la reintenta al restablecerse la sesión y deja la reconciliación marcada como pendiente hasta lograrlo.
+7. **[Validación]** La reconciliación se ejecuta también al iniciar la sesión de la jornada, no sólo tras una caída.
+8. **[Validación]** Los eventos de corrección son idempotentes: reconciliar dos veces sin cambios no genera eventos duplicados, conforme a RN-05.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Reconciliación del estado de órdenes tras una interrupción
+  Como sistema consumidor de BBVA quiero que el conector verifique el estado contra A3 tras cada interrupción
+  para tener la certeza de que lo que conozco coincide con lo que el mercado registra.
+
+  Escenario: Reconciliación con divergencias
+    Dado que la sesión se interrumpió durante cuatro minutos y se restableció
+    Y que la recuperación de secuencias se completó
+    Cuando el conector emite la consulta masiva de estado
+    Y A3 informa que la orden ""BBVA-000451"" está ejecutada mientras el último evento publicado la daba por activa
+    Entonces se publica un evento de corrección para ""BBVA-000451""
+    Y se registra el evento MSG-15: ""Reconciliación completada: {n} órdenes con estado divergente, publicadas como eventos de corrección.""
+
+  Escenario: Reconciliación sin divergencias
+    Dado que la sesión se restableció y la recuperación de secuencias se completó
+    Cuando el conector reconcilia y todos los estados coinciden
+    Entonces no se publica ningún evento de corrección
+    Y queda constancia de la reconciliación en auditoría
+
+  Escenario: Reconciliación al abrir la jornada
+    Dado que son las 09:30 y la sesión acaba de establecerse
+    Cuando el conector completa el Logon
+    Entonces dispara la reconciliación de estado
+    Y se registra el evento MSG-14: ""Reconciliación de estado iniciada tras restablecer la sesión. MassStatusReqID {massStatusReqId}.""
+
+  Escenario: La sesión se cae durante la reconciliación
+    Dado que la reconciliación está en curso
+    Cuando la sesión se interrumpe antes de recibir el último reporte
+    Entonces la reconciliación queda marcada como pendiente
+    Y se reintenta automáticamente al restablecerse la sesión
+```
+
+Fuera de alcance:
+
+- Reconciliación de operaciones concertadas (TCR) además de órdenes: se evalúa en `S-06`.
+- Reconexión automática que dispara esta reconciliación: es `FIX-5.03`. En la Fase 1 la reconexión es manual u operada.
+
+Notas / preguntas abiertas:
+
+- Esta historia **no está en el backlog borrador** pese a ser un entregable comprometido del plan de trabajo. Ver §11, observación O-4.
+
+Chequeo INVEST:
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ⚠️ Depende de `FIX-2.06` | ✅ | ✅ | ⚠️ Sin estimar en el input | ✅ | ✅ |"
+"Story";"FIX-2.08";"Monitorear el estado de las sesiones FIX";"Historia:
+
+```
+Como integrante del equipo de operaciones
+quiero conocer en todo momento el estado de la conectividad FIX con A3
+para identificar y actuar sobre los incidentes antes de que impacten en la operatoria
+```
+
+Valor de negocio:
+
+Convierte la conectividad en algo observable. Sin esto, la primera señal de un problema es que un usuario de negocio note que le faltan datos.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 16):
+
+```text
+Estado conectado/desconectado.
+Último heartbeat.
+Secuencia actual.
+```
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector expone y mantiene actualizado el estado de la sesión con los valores **Conectada**, **Desconectada** y **Cerrada**.
+2. **[Feliz]** El conector expone el *timestamp* del último mensaje recibido de A3 y del último enviado.
+3. **[Feliz]** El conector expone el `MsgSeqNum` entrante y saliente actuales.
+4. **[Feliz]** Cada transición de estado de la sesión se publica como evento y queda registrada en auditoría.
+5. **[Alternativo]** El conector emite alerta ante desconexión no controlada (MSG-04), ausencia prolongada de mensajes (MSG-05), gap de secuencia no recuperado (MSG-08) y fallo de publicación en MQ (MSG-13).
+6. **[Validación]** Las métricas y el estado expuestos se integran con las herramientas de observabilidad disponibles en BBVA, según lo definido en `T-04`.
+7. **[Validación]** Ningún dato expuesto incluye credenciales, conforme a RN-06.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Observabilidad de la sesión FIX
+  Como integrante del equipo de operaciones quiero conocer el estado de la conectividad con A3
+  para actuar sobre los incidentes antes de que impacten en la operatoria.
+
+  Escenario: Consulta del estado con sesión activa
+    Dado que la sesión está ""Conectada""
+    Cuando se consulta el estado de la conectividad
+    Entonces se informa el estado ""Conectada"", el timestamp del último mensaje recibido y enviado, y los MsgSeqNum entrante y saliente
+
+  Escenario: Alerta por desconexión no controlada
+    Dado que la sesión está ""Conectada""
+    Cuando el enlace se interrumpe sin intercambio de Logout
+    Entonces el estado pasa a ""Desconectada""
+    Y se emite la alerta MSG-04: ""Sesión FIX interrumpida sin Logout. Última actividad registrada: {timestamp}.""
+
+  Escenario: Las credenciales no se exponen
+    Cuando se consulta el estado de la conectividad
+    Entonces la respuesta no contiene el usuario ni la contraseña de A3
+```
+
+Fuera de alcance:
+
+- Tableros y análisis avanzado de la información logueada: Épica 5 («Observabilidad — Análisis básico de información logeada»).
+
+Notas / preguntas abiertas:
+
+- El canal de alertado (correo, herramienta corporativa, cola dedicada) lo define BBVA en `T-04`.
+
+Chequeo INVEST:
+
+| I | N | V | E | S | T |
+|---|---|---|---|---|---|
+| ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |"
+"Task";"FIX-2.09";"Persistir los números de secuencia de la sesión";"Objetivo técnico:
+
+Almacenar los `MsgSeqNum` entrante y saliente de la sesión FIX de forma que sobrevivan a un reinicio del proceso, para poder continuar la sesión sin pérdida ni duplicación de mensajes.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 4):
+
+```text
+Se guarda cada secuencia enviada.
+Se guarda cada secuencia recibida.
+Los datos sobreviven a reinicios.
+```
+
+> Observación literal del Excel (`Obs`, US 4): `Validar con BBVA donde se persiste (storage?)` — resuelta como SUP-05 (almacenamiento en archivos) y mantenida como `S-10` para confirmación formal.
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector persiste el `MsgSeqNum` de cada mensaje **enviado**, antes de considerarlo emitido.
+2. **[Feliz]** El conector persiste el `MsgSeqNum` de cada mensaje **recibido**, antes de procesarlo.
+3. **[Feliz]** Tras un reinicio del proceso, el conector recupera los últimos valores persistidos y continúa la numeración desde allí.
+4. **[Feliz]** La persistencia se resuelve mediante almacenamiento en archivos sobre volumen persistente, conforme a SUP-05.
+5. **[Alternativo]** El comportamiento al abrir la sesión diaria —reiniciar la numeración o continuarla— es **configurable**, conforme a SUP-14, porque `ResetSeqNumFlag` (141) no está documentado en el ROE de A3.
+6. **[Error]** Si la escritura de la secuencia falla, el conector no envía el mensaje y genera alerta: es preferible no enviar a enviar con una secuencia que no se puede recuperar.
+7. **[Validación]** La persistencia soporta el caudal de mensajes sin convertirse en el cuello de botella del procesamiento.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Persistencia de los números de secuencia de la sesión FIX
+  Escenario: Continuidad tras un reinicio del proceso
+    Dado que la sesión llegó al MsgSeqNum entrante 1487 y saliente 932
+    Y que esos valores quedaron persistidos
+    Cuando el proceso del conector se reinicia
+    Entonces al restablecer la sesión el conector continúa desde el entrante 1487 y el saliente 932
+    Y no se produce ningún gap ni duplicación
+
+  Escenario: Fallo de escritura de la secuencia
+    Dado que el almacenamiento de secuencias no está disponible
+    Cuando el conector intenta enviar un mensaje
+    Entonces el mensaje no se envía
+    Y se genera una alerta para el equipo de operaciones
+```
+
+Condiciones de error:
+
+| Condición | Comportamiento esperado |
+|---|---|
+| Almacenamiento no disponible en lectura | La sesión no se inicia; se alerta |
+| Almacenamiento no disponible en escritura | No se envía el mensaje; se alerta |
+| Valores persistidos corruptos o inconsistentes | La sesión no se inicia automáticamente; requiere intervención manual explícita |
+
+Notas / preguntas abiertas:
+
+- Si BBVA exige Sybase por política corporativa, hay que re-estimar: el patrón de acceso mediante *Stored Procedures* por cada mensaje puede afectar el caudal. Ver `S-10`."
+"Task";"FIX-2.10";"Detectar gaps en la secuencia entrante";"Objetivo técnico:
+
+Detectar cualquier discontinuidad en la secuencia de mensajes entrantes para poder disparar la recuperación automática antes de que se procese información incompleta.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 6):
+
+```text
+Se detecta cualquier salto.
+Se genera ResendRequest.
+Se reestablece la sincronización.
+```
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector compara el `MsgSeqNum` de cada mensaje entrante con el esperado y detecta cualquier salto.
+2. **[Feliz]** Al detectar un gap, el conector registra MSG-06: ""Gap de secuencia detectado: se esperaba {esperado}, se recibió {recibido}. Se solicita reenvío del rango {desde}-{hasta}."" y dispara la recuperación de `FIX-2.11`.
+3. **[Feliz]** Los mensajes recibidos durante la recuperación se encolan y se procesan en orden, no antes de completar el rango faltante.
+4. **[Alternativo]** Si el `MsgSeqNum` recibido es **menor** al esperado y el mensaje no tiene `PossDupFlag=Y`, el conector trata la situación como inconsistencia grave conforme al protocolo y alerta.
+5. **[Validación]** Un mensaje con `PossDupFlag=Y` cuyo `MsgSeqNum` ya fue procesado no se considera gap: se descarta conforme a RN-05 con MSG-12.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Detección de discontinuidades en la secuencia entrante
+  Escenario: Salto de secuencia detectado
+    Dado que el último MsgSeqNum entrante procesado es 1487
+    Cuando A3 envía un mensaje con MsgSeqNum 1492
+    Entonces el conector detecta el gap
+    Y registra la alerta MSG-06: ""Gap de secuencia detectado: se esperaba {esperado}, se recibió {recibido}. Se solicita reenvío del rango {desde}-{hasta}.""
+    Y solicita el reenvío del rango 1488-1491
+    Y encola el mensaje 1492 hasta completar el rango faltante
+
+  Escenario: Mensaje duplicado no se interpreta como gap
+    Dado que el último MsgSeqNum entrante procesado es 1487
+    Cuando A3 envía un mensaje con MsgSeqNum 1485 y PossDupFlag en Y
+    Entonces el conector no lo interpreta como gap
+    Y lo descarta registrando MSG-12: ""Mensaje FIX duplicado descartado (secuencia {seq}, identificador {id}). No se publica en MQ.""
+```
+
+Condiciones de error:
+
+| Condición | Comportamiento esperado |
+|---|---|
+| Secuencia entrante menor a la esperada sin `PossDupFlag` | Inconsistencia grave: alerta y, conforme al protocolo, cierre de la sesión |
+| Gap detectado durante una recuperación en curso | Se amplía el rango solicitado; no se inician recuperaciones concurrentes |"
+"Task";"FIX-2.11";"Recuperar los mensajes faltantes mediante Resend Request";"Objetivo técnico:
+
+Reconstruir los mensajes faltantes de la secuencia, en ambas direcciones, conforme al protocolo FIX, para que ningún evento del mercado se pierda.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 5):
+
+```text
+Se identifican gaps.
+Se responde con los mensajes faltantes.
+Se respeta el protocolo FIX.
+```
+
+> Observación literal del Excel (`Obs`, US 5): `Se loguean los mensajes en un archivo (enviadp - recibido)`
+
+Criterios de aceptación:
+
+1. **[Feliz]** Ante un gap detectado, el conector emite un `Resend Request` (`35=2`) con `BeginSeqNo` (7) y `EndSeqNo` (16) correctos, usando `EndSeqNo = 0` cuando solicita todos los mensajes posteriores a uno dado.
+2. **[Feliz]** El conector procesa los mensajes retransmitidos por A3 en orden y los entrega al procesamiento de negocio una vez completo el rango.
+3. **[Feliz]** El conector atiende los `Resend Request` que **recibe** de A3, retransmitiendo desde su registro los mensajes solicitados conforme al protocolo.
+4. **[Feliz]** El conector procesa `Sequence Reset` (`35=4`) en modo **Gap Fill** (`GapFillFlag=Y`) y en modo **Reset** (`GapFillFlag=N`), respetando la regla de que el `NewSeqNo` (36) no puede ser menor al esperado.
+5. **[Alternativo]** Completada la recuperación, el conector registra MSG-07: ""Secuencia restablecida. Rango {desde}-{hasta} recuperado.""
+6. **[Error]** Si tras los reintentos configurados el rango no se puede recuperar, el conector registra MSG-08: ""No se pudo recuperar el rango {desde}-{hasta} tras {n} intentos. Requiere intervención manual."" y alerta.
+7. **[Validación]** Los mensajes recuperados se deduplican antes de publicarse, conforme a RN-05: la recuperación no puede generar eventos duplicados en MQ.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Recuperación de mensajes faltantes de la sesión FIX
+  Escenario: Recuperación exitosa de un rango
+    Dado que el conector detectó un gap en el rango 1488-1491
+    Cuando emite un Resend Request con BeginSeqNo 1488 y EndSeqNo 1491
+    Y A3 retransmite los cuatro mensajes
+    Entonces el conector los procesa en orden
+    Y registra el evento MSG-07: ""Secuencia restablecida. Rango {desde}-{hasta} recuperado.""
+    Y ningún evento se publica dos veces en MQ
+
+  Escenario: A3 responde con Sequence Reset en modo Gap Fill
+    Dado que el conector solicitó el reenvío del rango 1488-1491
+    Cuando A3 responde con un Sequence Reset con GapFillFlag en Y y NewSeqNo 1492
+    Entonces el conector avanza la secuencia esperada a 1492
+    Y no espera los mensajes administrativos omitidos
+
+  Escenario: A3 solicita un reenvío al conector
+    Cuando A3 envía un Resend Request con BeginSeqNo 900 y EndSeqNo 0
+    Entonces el conector retransmite desde su registro todos los mensajes a partir del 900
+
+  Escenario: Rango que no se puede recuperar
+    Dado que el conector solicitó el reenvío del rango 1488-1491 tres veces
+    Cuando A3 no retransmite los mensajes
+    Entonces se registra el error MSG-08: ""No se pudo recuperar el rango {desde}-{hasta} tras {n} intentos. Requiere intervención manual.""
+    Y se alerta al equipo de operaciones
+```
+
+Condiciones de error:
+
+| Condición | Comportamiento esperado |
+|---|---|
+| A3 no responde al `Resend Request` | Reintento configurable; luego MSG-08 y alerta |
+| `NewSeqNo` menor al esperado en un `Sequence Reset` | Se rechaza conforme al protocolo y se alerta |
+| Mensajes retransmitidos ya procesados | Se descartan conforme a RN-05 con MSG-12 |"
+"Task";"FIX-2.12";"Registrar todos los mensajes FIX en formato raw";"Objetivo técnico:
+
+Almacenar cada mensaje FIX enviado y recibido en su forma original, de modo que pueda reconstruirse íntegramente la actividad diaria y el ciclo de vida de cualquier operación. A3 puede solicitar estos registros en casos de soporte.
+
+Escenarios fuente:
+
+> Transcripción literal del Excel (`Acc Crit.`, US 17):
+
+```text
+Se almacena mensaje raw.
+Se almacena timestamp.
+Se almacena sesión asociada.
+```
+
+Criterios de aceptación:
+
+1. **[Feliz]** Cada mensaje FIX enviado y recibido se almacena en formato *raw*, con *timestamp*, dirección (enviado o recibido), `MsgSeqNum`, `MsgType` y sesión asociada, conforme a RN-03.
+2. **[Feliz]** Cada mensaje publicado o consumido en MQ se registra con su `correlation ID`, conforme a RN-04.
+3. **[Feliz]** El registro permite reconstruir, para cualquier operación, la cadena completa mensaje FIX *raw* → evento normalizado → mensaje MQ.
+4. **[Feliz]** El registro cubre la actividad diaria completa y es exportable para entregarlo a A3 si lo solicita.
+5. **[Validación]** Los campos `Password` (554) y cualquier otro dato sensible se almacenan **enmascarados**, conforme a RN-06.
+6. **[Validación]** El registro se escribe **antes** de procesar o publicar el mensaje, para que un fallo posterior no deje el evento sin rastro.
+7. **[Validación]** La política de retención se acuerda con BBVA en `T-04`.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Auditoría de la mensajería FIX y MQ
+  Escenario: Registro de un Execution Report recibido
+    Cuando A3 envía un Execution Report
+    Entonces el mensaje raw queda almacenado con su timestamp, MsgSeqNum, MsgType y sesión
+    Y el registro precede a la publicación en MQ
+    Y comparte el correlation ID con el evento publicado
+
+  Escenario: Reconstrucción de la cadena de una operación
+    Dado que se publicó en MQ el evento con correlation ID ""c-88120""
+    Cuando se consulta la auditoría por ese correlation ID
+    Entonces se obtiene el mensaje FIX raw de origen, el evento normalizado y el mensaje MQ publicado
+
+  Escenario: Enmascaramiento de credenciales
+    Cuando el conector registra un Logon enviado
+    Entonces el campo Password aparece enmascarado en el registro
+```
+
+Condiciones de error:
+
+| Condición | Comportamiento esperado |
+|---|---|
+| El almacenamiento de auditoría no está disponible | Alerta inmediata. El comportamiento —detener el procesamiento o continuar degradado— se decide en `T-04`, porque la auditoría es requisito de A3 |
+| Registro con credenciales sin enmascarar | Defecto bloqueante de seguridad |"
+"Task";"FIX-2.13";"Procesar de forma idempotente los mensajes reenviados";"Objetivo técnico:
+
+Garantizar que ni el mecanismo de recuperación de FIX ni el *redelivery* de MQ produzcan eventos duplicados en los sistemas de BBVA. Es la mitigación que la propia propuesta técnica define para uno de sus riesgos principales.
+
+Escenarios fuente:
+
+> No hay escenarios en el input. Derivado de la mitigación declarada en el RAID: «definir mecanismos de procesamiento idempotente o controles equivalentes para los flujos críticos y validar específicamente los escenarios de reenvío y redelivery».
+
+Criterios de aceptación:
+
+1. **[Feliz]** El conector mantiene un registro de los identificadores de negocio ya procesados: `ExecID` (17) para Execution Reports y `TradeReportID` (571) para Trade Capture Reports.
+2. **[Feliz]** Un mensaje cuyo identificador ya fue procesado no se vuelve a publicar en MQ y se registra MSG-12: ""Mensaje FIX duplicado descartado (secuencia {seq}, identificador {id}). No se publica en MQ.""
+3. **[Feliz]** Un mensaje con `PossDupFlag=Y` se evalúa contra el registro antes de procesarse.
+4. **[Feliz]** La deduplicación cubre tanto el reenvío por FIX como la reentrega por MQ.
+5. **[Validación]** El registro de identificadores procesados sobrevive a un reinicio del proceso dentro de la jornada.
+6. **[Validación]** La ventana de deduplicación se acuerda con BBVA; la propuesta del PO es la jornada de negociación completa.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Procesamiento idempotente de los mensajes del mercado
+  Escenario: Execution Report reenviado tras una recuperación
+    Dado que el Execution Report con ExecID ""EX-77120"" ya fue publicado
+    Cuando A3 lo retransmite en respuesta a un Resend Request
+    Entonces no se publica un segundo evento en MQ
+    Y se registra MSG-12: ""Mensaje FIX duplicado descartado (secuencia {seq}, identificador {id}). No se publica en MQ.""
+
+  Escenario: Reentrega del mismo mensaje por MQ
+    Dado que el evento con correlation ID ""c-88120"" ya fue entregado
+    Cuando MQ lo reentrega por redelivery
+    Entonces el consumidor puede identificarlo como el mismo evento
+    Y no se duplica el efecto en los sistemas de BBVA
+
+  Escenario: Deduplicación persistente tras reinicio
+    Dado que el Execution Report con ExecID ""EX-77120"" fue publicado antes del reinicio
+    Cuando el proceso se reinicia y A3 retransmite ese mensaje
+    Entonces el conector lo sigue reconociendo como duplicado
+```
+
+Condiciones de error:
+
+| Condición | Comportamiento esperado |
+|---|---|
+| Registro de deduplicación no disponible | Alerta. No se publica sin poder verificar duplicados: es preferible demorar a duplicar |
+| Identificador de negocio ausente en el mensaje | Se cae al criterio de `MsgSeqNum` + `PossDupFlag` y se registra la excepción |
+
+> **Nota de diseño:** en la Fase 1 el costo de un duplicado es un evento informativo repetido. A partir de la Épica 4, el mismo mecanismo evita **órdenes duplicadas en el mercado**. Construirlo ahora, con el costo del error bajo, es una decisión deliberada de secuencia."
+"Task";"FIX-2.14";"Correlacionar de punta a punta la mensajería FIX y MQ";"Objetivo técnico:
+
+Asignar y propagar un identificador de correlación que atraviese el mensaje FIX, el evento normalizado, el mensaje MQ y el registro de auditoría, de modo que cualquier incidente pueda investigarse sin reconstruir la cadena a mano.
+
+Criterios de aceptación:
+
+1. **[Feliz]** Todo mensaje FIX de negocio recibido genera un `correlation ID` único que se propaga al evento normalizado, al mensaje MQ y al registro de auditoría, conforme a RN-04.
+2. **[Feliz]** Los eventos derivados de un mismo hecho de negocio —por ejemplo, las sucesivas ejecuciones parciales de una orden— comparten además un identificador de agrupación basado en el `ClOrdID` o el `OrderID`.
+3. **[Feliz]** El `correlation ID` se incluye en las trazas y en los logs de aplicación, no sólo en la auditoría.
+4. **[Validación]** Dado un `correlation ID`, se puede recuperar el mensaje FIX *raw*, el evento publicado y su estado de entrega.
+5. **[Validación]** El formato del `correlation ID` se acuerda con arquitectura de BBVA en `T-03`, para que sea compatible con las herramientas de trazabilidad corporativas.
+
+Escenarios BDD:
+
+```gherkin
+Característica: Correlación de punta a punta
+  Escenario: Trazabilidad de un evento publicado
+    Cuando A3 envía un Execution Report y el conector lo publica en MQ
+    Entonces el mensaje raw, el evento normalizado y el mensaje MQ comparten el mismo correlation ID
+
+  Escenario: Agrupación de ejecuciones parciales
+    Dado que la orden ""BBVA-000451"" recibe tres ejecuciones parciales
+    Cuando se publican los tres eventos
+    Entonces cada uno tiene su propio correlation ID
+    Y los tres comparten el identificador de agrupación de la orden
+```
+
+Condiciones de error:
+
+| Condición | Comportamiento esperado |
+|---|---|
+| Evento publicado sin `correlation ID` | Defecto bloqueante: incumple RN-04 |"
+"Story";"FIX-4.01";"Recibir instrucciones de orden desde MQ";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E4 — Order Routing
+
+Objetivo y alcance:
+Consumir desde la cola de BBVA las instrucciones de alta, cancelación y modificación, validarlas y transformarlas al mensaje FIX correspondiente
+
+Criterios de aceptacion de alto nivel:
+- Consume de la cola definida
+- Valida estructura y obligatoriedad
+- Rechaza y deriva los mensajes inválidos sin descartarlos
+- **Es idempotente frente a `redelivery` de MQ: una misma instrucción nunca genera dos órdenes**
+- Registra trazabilidad completa
+
+Dependencias y riesgos:
+Contratos MQ de entrada · Duda del Excel: «¿Lo vamos a recibir en la cola o en una API?» → `S-11`
+
+Trazabilidad input: US Excel 7
+Estimacion del input: 5–8 SP
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-4.02";"Enviar una nueva orden al mercado";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E4 — Order Routing
+
+Objetivo y alcance:
+Emitir `NewOrderSingle` (`35=D`) a partir de la instrucción recibida
+
+Criterios de aceptacion de alto nivel:
+- Genera `ClOrdID` (11) único
+- Completa `Account`, `Symbol`, `Side`, `OrderQty`, `Price`, `OrdType` (2 = Limit, K = Market with Left Over as Limit) y `TimeInForce` (Day, GTC, IOC, FOK, GTD)
+- Valida los campos que el mercado fija antes de enviar
+- Registra auditoría completa
+- El Execution Report de respuesta se procesa con `FIX-2.04`, **sin cambios en el contrato de salida**
+
+Dependencias y riesgos:
+`FIX-4.01` · Duda del Excel: «puede haber alguna verificación respecto de valores en campos fix que estén fijados por el mercado (mensaje bien formado)»
+
+Trazabilidad input: US Excel 8
+Estimacion del input: 3–5 SP
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-4.03";"Cancelar una orden vigente";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E4 — Order Routing
+
+Objetivo y alcance:
+Emitir `OrderCancelRequest` (`35=F`)
+
+Criterios de aceptacion de alto nivel:
+- Referencia el `OrigClOrdID` correcto de la cadena
+- Maneja `OrderCancelReject` (`35=9`)
+- **La cancelación es asincrónica**: el estado sólo cambia al recibir el Execution Report de confirmación
+
+Dependencias y riesgos:
+`FIX-4.02` · Observación del Excel: «explicitar que fix es asincrónico»
+
+Trazabilidad input: US Excel 9
+Estimacion del input: 3–5 SP
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-4.04";"Modificar una orden vigente";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E4 — Order Routing
+
+Objetivo y alcance:
+Emitir `OrderCancelReplaceRequest` (`35=G`)
+
+Criterios de aceptacion de alto nivel:
+- Referencia el `OrigClOrdID` correcto
+- Genera un nuevo `ClOrdID` para la versión modificada
+- Maneja `OrderCancelReject`
+- Asincrónico igual que la cancelación
+
+Dependencias y riesgos:
+`FIX-4.02`
+
+Trazabilidad input: US Excel 10
+Estimacion del input: 3–5 SP
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-4.05";"Cancelar masivamente las órdenes (kill switch)";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E4 — Order Routing
+
+Objetivo y alcance:
+Emitir `OrderMassCancelRequest` (`35=q`) como mecanismo de contingencia
+
+Criterios de aceptacion de alto nivel:
+- Soporta `MassCancelRequestType` 1 (por instrumento), 4 (por CFICode) y 7 (todas)
+- Respeta el límite de A3 de 1 cancelación masiva por segundo
+- Requiere autorización explícita
+
+Dependencias y riesgos:
+A3 lo exige como control obligatorio (*Kill Switch*) para el acceso al mercado
+
+Trazabilidad input: US Excel *No está en el Excel*
+Estimacion del input: Sin estimar
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-4.06";"Aplicar las reglas de negocio por producto";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E4 — Order Routing
+
+Objetivo y alcance:
+Validaciones y particularidades de TRD, Renta Fija y Cauciones
+
+Criterios de aceptacion de alto nivel:
+- A definir con los referentes de negocio de BBVA
+
+Dependencias y riesgos:
+⚠️ **Cauciones estará disponible en A3 recién a fines de 2026**
+
+Trazabilidad input: US Excel *Implícita en US 26*
+Estimacion del input: Sin estimar
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-4.07";"Control de riesgo pre-trade";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E4 — Order Routing
+
+Objetivo y alcance:
+Sólo si la operatoria califica como acceso DMA: control de saldo disponible, márgenes al abrir posición, diferencias diarias, límites por segmento e instrumento, cantidad máxima por orden y *kill button*, todos controlables en tiempo real
+
+Criterios de aceptacion de alto nivel:
+- Exigido por el Manual de Conectividad de A3 para habilitar DMA. **Puede ser un proyecto en sí mismo**
+
+Dependencias y riesgos:
+`S-08` — hay que aclararlo ahora aunque el impacto sea en la Épica 4
+
+Trazabilidad input: US Excel *No está en el Excel*
+Estimacion del input: Sin estimar
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-5.01";"Suscribirse a Market Data de A3";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E5 — Market Data y Tolerancia a Fallas
+
+Objetivo y alcance:
+Emitir `MarketDataRequest` (`35=V`) y consumir `Snapshot / Full Refresh` (`35=W`)
+
+Criterios de aceptacion de alto nivel:
+- Genera la suscripción con `MDReqID` único y `SubscriptionRequestType` 0, 1 o 2
+- Define `MarketDepth` (0 = Full Book, 1 = Top of Book, N = mejores N niveles)
+- Recibe y procesa actualizaciones
+- Maneja `MarketDataRequestReject` (`35=Y`)
+- Gestiona la reanudación tras reconexión
+
+Dependencias y riesgos:
+⚠️ El gateway **FIX-PTP entrega Full Refresh con profundidad 10 y 1 mensaje cada 500 ms por símbolo**. Mayor frecuencia requiere FIX-PTP-HR, e *incremental refresh* requiere FIX-PTP-LL, **sólo disponible vía colocation** → `S-09`
+
+Trazabilidad input: US Excel 14
+Estimacion del input: 3–5 SP
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-5.02";"Publicar Market Data en MQ";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E5 — Market Data y Tolerancia a Fallas
+
+Objetivo y alcance:
+Normalizar y distribuir los precios hacia los consumidores internos
+
+Criterios de aceptacion de alto nivel:
+- Publica según el contrato acordado
+- Configura colas, tópicos y suscripciones
+- Soporta el caudal sin degradar el procesamiento de ER y TCR
+
+Dependencias y riesgos:
+Observación del Excel: «contemplar la configuración de las colas MQ para publicación (suscripciones, tópicos, etc.)»
+
+Trazabilidad input: US Excel 15
+Estimacion del input: 3–8 SP
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-5.03";"Reconexión automática";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E5 — Market Data y Tolerancia a Fallas
+
+Objetivo y alcance:
+Restablecer la sesión sin intervención manual
+
+Criterios de aceptacion de alto nivel:
+- Reintentos configurables con espera creciente
+- Recupera las secuencias tras reconectar
+- Dispara la reconciliación de `FIX-2.07`
+- No reintenta fuera de la ventana operativa de A3
+- ⚠️ **El *hard stop* por credenciales rechazadas de RN-18 prevalece sobre toda política de reintento**: ante `Logout` con `Text` de credencial inválida, expirada o usuario bloqueado, no se reintenta nunca automáticamente
+
+Dependencias y riesgos:
+`FIX-2.01`, `FIX-2.07`, `FIX-2.11` · RN-18
+
+Trazabilidad input: US Excel 18
+Estimacion del input: 3–5 SP
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-5.04";"Recuperación tras reinicio del proceso";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E5 — Market Data y Tolerancia a Fallas
+
+Objetivo y alcance:
+Restaurar el estado operativo tras un reinicio
+
+Criterios de aceptacion de alto nivel:
+- Recupera las secuencias persistidas
+- Recupera el estado de las órdenes abiertas mediante consulta a A3
+- ❌ **Se elimina del alcance «recupera posiciones locales»**: el conector no mantiene posiciones, conforme a RN-15
+
+Dependencias y riesgos:
+`FIX-2.09`, `FIX-2.07`
+
+Trazabilidad input: US Excel 19
+Estimacion del input: 1–3 SP
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Story";"FIX-5.05";"Catálogo de instrumentos";"Historia de cabecera — refinamiento diferido (SUP-13).
+Epica: E5 — Market Data y Tolerancia a Fallas
+
+Objetivo y alcance:
+`SecurityListRequest` / `SecurityList` (`35=x` / `35=y`) y `SecurityStatus` (`35=e` / `35=f`)
+
+Criterios de aceptacion de alto nivel:
+- Mantiene el catálogo de instrumentos habilitados y su estado
+
+Dependencias y riesgos:
+⚠️ **Puede necesitar adelantarse al MVP** si la normalización de ER y TCR requiere enriquecer más allá del `Symbol` → `S-04`
+
+Trazabilidad input: US Excel *No está en el Excel*
+Estimacion del input: Sin estimar
+
+Nota: requiere refinamiento a tarjeta completa antes de entrar a sprint."
+"Task";"T-01";"Configuración del ambiente intive";"Objetivo tecnico:
+Disponer del ambiente de desarrollo y prueba propio: WebSphere Liberty y colas MQ
+
+Definition of Done:
+El conector arranca en el ambiente, la conexión FIX contra reMarkets se establece y las colas MQ están accesibles. Estimación del input: **8–13 SP**
+
+Trazabilidad input: US 20"
+"Task";"T-02";"Soporte a la configuración del ambiente BBVA";"Objetivo tecnico:
+Acompañar a BBVA en la preparación de su ambiente (Liberty, MQ, red hacia A3)
+
+Definition of Done:
+El ambiente BBVA está operativo y validado con una conexión de prueba. **Ejecuta BBVA**; el equipo asigna capacidad de soporte. Estimación del input: **13–21 SP**
+
+Trazabilidad input: US 21"
+"Task";"T-03";"Definición de los contratos de mensajería MQ";"Objetivo tecnico:
+Acordar el contrato de los eventos que el conector publica: estados de orden, operaciones concertadas, estado de sesión, estado de mercado, errores. Incluye el formato del `correlation ID` y el catálogo §5
+
+Definition of Done:
+Contratos versionados y **aprobados por arquitectura de BBVA**. No cambian entre el fin de la Épica 1 y el fin de la Épica 3
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-04";"Estrategia de observabilidad, logging y retención";"Objetivo tecnico:
+Definir métricas, alertas, canal de alertado, formato de log y política de retención de la auditoría
+
+Definition of Done:
+Documento aprobado; herramientas identificadas; comportamiento ante indisponibilidad de la auditoría decidido
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-05";"Alta de la sesión Drop Copy y mapeo de cuentas con A3";"Objetivo tecnico:
+Solicitar a A3 el usuario FIX con **perfil Drop Copy de sólo lectura** y acordar el conjunto de IDs de cuentas y de operadores de BBVA que quedarán asociados a la sesión, para reMarkets y para producción. Incluye coordenadas, CompIDs y credenciales
+
+Definition of Done:
+Usuario Drop Copy creado, mapeo de cuentas confirmado por A3, cuenta de reMarkets creada en `remarkets.primary.ventures` y **conexión de prueba con recepción efectiva de un Execution Report duplicado**. ⚠️ Definir con el negocio el conjunto de cuentas es precondición: determina qué eventos verá el conector. **Bloquea `FIX-2.04`**
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-06";"Esquema de gestión del secret y procedimiento de credenciales";"Objetivo tecnico:
+Definir con seguridad de BBVA la estructura del secret y **documentar el procedimiento administrativo de actualización de contraseña**, que es fuera de banda conforme a `S-02`
+
+Definition of Done:
+Secret de un único campo con la contraseña vigente, accesible en sólo lectura por el conector. Procedimiento documentado con los dos caminos: en reMarkets, solicitud al soporte de Primary; en producción, consola administrativa de Primary gestionada por la ALyC. Incluye el **runbook de salida del *hard stop*** de RN-18: actualizar credencial → cargar en el secret → acción manual de reanudación
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-07";"Relevamiento de códigos CNV y estructura de cuentas de BBVA";"Objetivo tecnico:
+Obtener los valores del bloque `Parties` que exige A3: agente de negociación, Client ID, agente de compensación, *Executing Trader*, *Desk ID* y *Customer Account*
+
+Definition of Done:
+Códigos documentados y validados contra una consulta TCR real en reMarkets. **Bloquea `FIX-2.05`**
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-08";"Definición del framework MQ";"Objetivo tecnico:
+Decisión de BBVA sobre el framework, librería o componente aprobado, compatible con Java 25 y Liberty
+
+Definition of Done:
+Framework definido, disponible en el repositorio corporativo y probado con un mensaje de ida y vuelta
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-09";"Arquitectura de referencia y diseño del FIX Engine";"Objetivo tecnico:
+Definir la separación entre capacidades comunes FIX, adaptador A3 e integración BBVA; decidir la librería FIX base
+
+Definition of Done:
+Documento de arquitectura aprobado, con las fronteras de extensibilidad hacia otros mercados explicitadas
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-10";"Spike de despliegue Java 25 sobre WebSphere Liberty";"Objetivo tecnico:
+Verificar la compatibilidad de la versión de Liberty disponible en BBVA con Java 25
+
+Definition of Done:
+Aplicación mínima desplegada y ejecutándose en el ambiente objetivo. ✅ **Resuelto el 2026-09-16 (`S-12`): el estándar es IBM WebSphere Liberty**, no Open Liberty. La anotación «Open-Liberty» del Excel queda descartada; corregir `T-01` en consecuencia
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-11";"Definición de escenarios y casos principales de prueba";"Objetivo tecnico:
+Elaborar el catálogo de casos de prueba del MVP, incluyendo escenarios de error y de recuperación
+
+Definition of Done:
+Catálogo revisado con QA y con BBVA, alineado a los criterios de evaluación de A3
+
+Trazabilidad input: US 24 (parcial)"
+"Task";"T-12";"Backlog refinado, priorización del MVP y plan de releases";"Objetivo tecnico:
+Dejar el backlog de la Épica 2 listo para ejecutar
+
+Definition of Done:
+Historias de E2 refinadas, estimadas y priorizadas; plan de releases acordado; spikes bloqueantes resueltos
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-13";"Pipeline CI/CD";"Objetivo tecnico:
+Construcción y despliegue automatizados en el ambiente intive
+
+Definition of Done:
+El pipeline construye, prueba y despliega de forma reproducible desde la rama principal
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-14";"Gestión del proceso de certificación con A3";"Objetivo tecnico:
+Obtener el paquete de certificación y **formalizar por escrito el alcance parcial ya aceptado**
+
+Definition of Done:
+✅ **A3 confirmó que acepta la homologación parcial limitada a la integración de TCR y ER, sin envío de órdenes ni market data** (`S-15`, 2026-09-16). Queda por obtener el paquete de certificación, identificar los casos de prueba requeridos y **dejar el acuerdo asentado por escrito**. Estimación del input: **13–21 SP** · Observación del Excel: «Contactar a A3 para validar homologación requerida»
+
+Trazabilidad input: US 23"
+"Task";"T-15";"Prueba de despliegue en el ambiente BBVA";"Objetivo tecnico:
+Desplegar el entregable parcial en el ambiente de BBVA e integrarlo con el ambiente de pruebas de A3
+
+Definition of Done:
+Conector desplegado y con sesión FIX establecida desde el ambiente BBVA. Estimación del input: **13–21 SP**
+
+Trazabilidad input: US 22"
+"Task";"T-16";"Pruebas de recuperación, duplicados y colas";"Objetivo tecnico:
+Validar los escenarios de riesgo del MVP
+
+Definition of Done:
+Se simulan caídas de sesión, se validan los *resend requests*, se validan los duplicados por FIX y por *redelivery* de MQ, y se validan las recuperaciones. **Cero eventos perdidos y cero duplicados publicados.** Estimación del input: **8–21 SP**
+
+Trazabilidad input: US 25"
+"Task";"T-17";"Ejecución de la homologación con A3";"Objetivo tecnico:
+Ejecutar los casos de certificación sobre el alcance acordado
+
+Definition of Done:
+Se validan las sesiones, el manejo de errores y la estabilidad. Evidencias documentadas y entregadas a A3
+
+Trazabilidad input: US 24 (parcial)"
+"Task";"T-18";"Pruebas de aceptación de BBVA";"Objetivo tecnico:
+Ejecutar la validación funcional del MVP en el ambiente intive
+
+Definition of Done:
+Casos ejecutados por BBVA, evidencias registradas y **conformidad funcional firmada**. Observación del Excel: «definir prueba de aceptación del producto (DoD)» → `S-13`
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-19";"Corrección de defectos de homologación y de aceptación";"Objetivo tecnico:
+Cerrar los hallazgos de ambas instancias
+
+Definition of Done:
+Cero defectos bloqueantes abiertos; defectos no bloqueantes con ticket y prioridad
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
+"Task";"T-20";"Definición del ambiente de certificación";"Objetivo tecnico:
+Determinar si la certificación se ejecuta sobre el ambiente intive de desarrollo o sobre uno separado
+
+Definition of Done:
+Ambiente definido y disponible. Observación del Excel: «se define un ambiente de certificación separado del de intive que es el de desarrollo» → `S-14`
+
+Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
