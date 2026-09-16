@@ -29,14 +29,15 @@ Criterios de aceptación:
 1. **[Feliz]** El conector establece una conexión TCP contra el *host* y puerto configurados para el ambiente (`fix.remarkets.primary.com.ar:9876` en pruebas) y envía un `Logon` (`35=A`) con `EncryptMethod` (98) = 0, `HeartBtInt` (108) ≥ 10 conforme a RN-10, `Username` (553), `Password` (554) y `DefaultApplVerID` (1137) = 9 conforme a RN-13.
 2. **[Feliz]** El `Logon` se emite con `SenderCompID`, `TargetCompID`, `OnBehalfOfCompID` y `DeliverToCompID` completados según RN-14, con los valores provistos por A3 para el ambiente.
 3. **[Feliz]** Al recibir el `Logon` de respuesta de A3, el estado de la sesión pasa a **Conectada** y se publica MSG-01: ""Sesión FIX establecida con A3. SenderCompID {sender}, HeartBtInt {n}s, secuencia entrante {seqIn}, saliente {seqOut}.""
-4. **[Feliz]** Las credenciales se obtienen del secret administrado por seguridad de BBVA en el momento de la conexión, y no quedan registradas en ningún log ni traza, conforme a RN-06.
+4. **[Feliz]** Las credenciales se obtienen de la **API del banco** en el momento de abrir la sesión, se mantienen sólo en memoria durante la jornada y no quedan registradas en ningún log ni traza, conforme a RN-06.
+4.1. **[Feliz]** Al abrir la sesión de la jornada, los números de secuencia entrante y saliente **se reinician** conforme a RN-19, y se registra MSG-25: ""Apertura de jornada: números de secuencia reiniciados. Entrante 1, saliente 1.""
 5. **[Feliz]** El `Logon` enviado y el recibido quedan registrados en formato *raw* conforme a RN-03, con las credenciales enmascaradas.
 6. **[Alternativo]** Si A3 responde con `Logout` (`35=5`), el conector interpreta el rechazo de autenticación, deja la sesión en estado **Desconectada** y publica MSG-02: ""No se pudo establecer la sesión FIX con A3: {motivo}. La sesión queda en estado Desconectada.""
 6.1. **[Error]** El conector **lee el campo `Text` (58) del `Logout`** para determinar la causa. A3 envía allí cadenas explícitas del tipo `""Invalid username or password""`, `""Password expired""` o `""User locked""`.
 6.2. **[Error]** Ante cualquiera de esas causas, el conector aplica **hard stop** conforme a RN-18: **detiene todo reintento automático de conexión** —para no bloquear el usuario por intentos fallidos— y emite alerta crítica con MSG-23: ""A3 rechazó las credenciales: {text}. Se detienen los reintentos automáticos para no bloquear el usuario. Requiere intervención manual de un administrador.""
 6.3. **[Validación]** La salida del *hard stop* requiere una **acción manual explícita** de un administrador tras actualizar la credencial en el secret. El conector no reanuda por sí solo ni por reinicio del proceso.
 7. **[Error]** Si A3 responde con `Reject – Session Level` (`35=3`), el conector registra `RefSeqNum` (45), `RefTagID` (371), `RefMsgType` (372) y `SessionRejectReason` (373), y publica MSG-09: ""A3 rechazó el mensaje de secuencia {refSeqNum}: {sessionRejectReason} — {text}.""
-8. **[Error]** Si no se puede leer el secret de credenciales, el conector no intenta la conexión y publica MSG-19: ""No se pudo leer el secret de credenciales de A3. La sesión no se inicia.""
+8. **[Error]** Si la API de credenciales del banco no responde o devuelve un error, el conector no intenta la conexión y publica MSG-19: ""No se pudieron obtener las credenciales de A3 desde la API del banco: {motivo}. La sesión no se inicia.""
 9. **[Validación]** Si la solicitud de conexión ocurre fuera de la ventana de 09:30 a 19:00 conforme a RN-07, el conector no intenta conectarse y registra MSG-20: ""Fuera de la ventana de sesión FIX de A3 (09:30 a 19:00). No se intenta conexión.""
 10. **[Validación]** El conector no abre una segunda sesión con la misma combinación de CompIDs conforme a RN-09.
 
@@ -78,7 +79,7 @@ Característica: Establecimiento de la sesión FIX con A3
 
   Escenario: Reanudación tras actualizar la credencial
     Dado que el conector está en hard stop por credenciales rechazadas
-    Y que un administrador actualizó la contraseña en el secret de BBVA
+    Y que un administrador actualizó la contraseña en el sistema del banco que respalda la API de credenciales
     Cuando el administrador ejecuta la acción manual de reanudación
     Entonces el conector vuelve a intentar el Logon con la credencial actualizada
 
@@ -93,11 +94,17 @@ Característica: Establecimiento de la sesión FIX con A3
     Entonces se publica el error MSG-09: ""A3 rechazó el mensaje de secuencia {refSeqNum}: {sessionRejectReason} — {text}.""
     Y el conector no reintenta con el mismo mensaje
 
-  Escenario: Secret de credenciales no disponible
-    Dado que el proveedor de secretos de BBVA no responde
+  Escenario: La API de credenciales del banco no responde
+    Dado que la API de credenciales del banco no responde
     Cuando el conector intenta iniciar la sesión
     Entonces no se establece la conexión TCP
-    Y se publica el error MSG-19: ""No se pudo leer el secret de credenciales de A3. La sesión no se inicia.""
+    Y se publica el error MSG-19: ""No se pudieron obtener las credenciales de A3 desde la API del banco: {motivo}. La sesión no se inicia.""
+
+  Escenario: Apertura de jornada con reinicio de secuencias
+    Dado que son las 09:30 y comienza una nueva jornada de negociación
+    Cuando el conector completa el Logon
+    Entonces los números de secuencia entrante y saliente arrancan en 1
+    Y se registra el evento MSG-25: ""Apertura de jornada: números de secuencia reiniciados. Entrante 1, saliente 1.""
 
   Escenario: Intento fuera de la ventana de sesión
     Dado que son las 20:15
@@ -115,8 +122,9 @@ Fuera de alcance:
 Notas / preguntas abiertas:
 
 - **Pendiente de confirmar con el equipo técnico:** el valor de `HeartBtInt` a configurar debe acordarse con A3; el ROE sólo fija el mínimo de 10 segundos.
-- **Pendiente de confirmar con el equipo técnico (`S-03`):** el comportamiento de los números de secuencia al abrir la sesión diaria. El diseño los deja configurables conforme a SUP-14.
-- **Resuelto el 2026-09-16 (`S-02`):** la actualización de la credencial tras un *hard stop* implica que un administrador la modifique manualmente —en reMarkets a través del soporte de Primary, en producción desde las consolas administrativas de Primary— y luego la cargue en el secret o bóveda de BBVA. El procedimiento operativo se documenta en `T-06`.
+- **Resuelto el 2026-09-16 (`S-03`): el reinicio de secuencias es diario.** El diseño deja de necesitar la configurabilidad prevista en SUP-14.
+- **Resuelto el 2026-09-16 (`S-02` y credenciales):** la actualización de la credencial tras un *hard stop* implica que un administrador la modifique en el sistema del banco —origen de la API de credenciales— tras gestionarla con Primary. El conector la vuelve a obtener de la API al reanudar, sin redespliegue. El procedimiento operativo se documenta en `T-06`.
+- **Pendiente (`S-17`):** el contrato de la API de credenciales del banco —endpoint, autenticación del conector contra ella, formato de respuesta, códigos de error y política de caché— no está relevado. **Introduce una dependencia de disponibilidad en el arranque:** si la API no responde a las 09:30, no hay sesión.
 
 Chequeo INVEST:
 
@@ -469,8 +477,8 @@ Fuera de alcance:
 Notas / preguntas abiertas:
 
 - **Esta historia no tenía ningún contenido en el backlog borrador.** Los criterios se derivaron del ROE de A3 y **quedan pendientes de validación funcional con los referentes de negocio de BBVA**.
-- **Pendiente de confirmar con el negocio (`S-06`):** la periodicidad y los criterios de las consultas. ¿Por cuenta al cierre de jornada? ¿Por símbolo bajo demanda? ¿Ambas? La propuesta base es consulta por cuenta al cierre de jornada más consulta bajo demanda por símbolo.
-- **Pendiente de confirmar con A3 (`S-05`):** si se puede suscribir a Trade Capture Reports en lugar de consultarlos. El ROE documenta `SubscriptionRequestType` sólo para *allocations y giveups*, que está fuera de alcance. El diseño base asume *pull* periódico.
+- **Resuelto el 2026-09-16 (`S-05`): sólo consulta, no hay suscripción.** El flujo de TCR es exclusivamente *pull*. Queda descartado todo diseño basado en recepción no solicitada de Trade Capture Reports.
+- **Resuelto el 2026-09-16 (`S-06`): consulta asincrónica a demanda, sin periodicidad fija.** Se descarta la propuesta de consulta programada al cierre de jornada: el conector **no planifica consultas por horario**, las emite cuando la necesidad se presenta. El criterio de disparo deja de ser temporal y pasa a ser por demanda. ⚠️ Queda por cerrar **quién origina esa demanda**, que es `S-07`.
 - **Pendiente de confirmar con A3 (`S-16`):** que el perfil Drop Copy de sólo lectura admita emitir `Trade Capture Report Request`. Si no lo admitiera, los TCR llegarían únicamente como eventos duplicados y esta historia se simplificaría a consumo pasivo.
 
 Chequeo INVEST:
@@ -561,7 +569,7 @@ Fuera de alcance:
 Notas / preguntas abiertas:
 
 - ⚠️ **Verificación necesaria en la Épica 1:** la sesión del MVP es un **perfil Drop Copy de sólo lectura** (RN-17). Hay que confirmar con A3 que ese perfil **admite emitir `Order Status Request` y `Order Mass Status Request`**. Ambos son de lectura, pero un perfil restringido podría no habilitarlos. Si A3 no los admite sobre Drop Copy, esta historia y la reconciliación de `FIX-2.07` necesitan rediseñarse sobre el flujo de eventos duplicados. Se agrega como `S-16`.
-- **Pendiente de confirmar con el equipo técnico (`S-07`):** quién dispara la consulta en la Fase 1. Con el MVP puramente saliente (SUP-04), la propuesta es que la dispare el propio conector según su planificación configurable, no BBVA.
+- ⚠️ **Requiere una aclaración de una línea (`S-07`).** La respuesta recibida fue «A3», que no responde literalmente a la pregunta: A3 no puede disparar una consulta que emite el conector. **Interpretación aplicada:** el disparo es **reactivo a los eventos que A3 envía** por la sesión Drop Copy —el conector consulta cuando un evento recibido lo amerita, sin planificación horaria—, lo que es coherente con «asincrónico a demanda» de `S-06` y preserva SUP-04 sin necesidad de cola de entrada. **Confirmar antes de cerrar el diseño**, porque decide si hay que construir un planificador, un canal de entrada desde BBVA, o ninguno de los dos.
 
 Chequeo INVEST:
 
@@ -725,15 +733,16 @@ Se guarda cada secuencia recibida.
 Los datos sobreviven a reinicios.
 ```
 
-> Observación literal del Excel (`Obs`, US 4): `Validar con BBVA donde se persiste (storage?)` — resuelta como SUP-05 (almacenamiento en archivos) y mantenida como `S-10` para confirmación formal.
+> Observación literal del Excel (`Obs`, US 4): `Validar con BBVA donde se persiste (storage?)` — ✅ **resuelta el 2026-09-16: persistencia por archivos, deliberadamente para no impactar la base de datos** (`S-10`). **Sybase queda fuera del alcance del MVP.**
 
 Criterios de aceptación:
 
 1. **[Feliz]** El conector persiste el `MsgSeqNum` de cada mensaje **enviado**, antes de considerarlo emitido.
 2. **[Feliz]** El conector persiste el `MsgSeqNum` de cada mensaje **recibido**, antes de procesarlo.
 3. **[Feliz]** Tras un reinicio del proceso, el conector recupera los últimos valores persistidos y continúa la numeración desde allí.
-4. **[Feliz]** La persistencia se resuelve mediante almacenamiento en archivos sobre volumen persistente, conforme a SUP-05.
-5. **[Alternativo]** El comportamiento al abrir la sesión diaria —reiniciar la numeración o continuarla— es **configurable**, conforme a SUP-14, porque `ResetSeqNumFlag` (141) no está documentado en el ROE de A3.
+4. **[Feliz]** La persistencia se resuelve mediante **almacenamiento en archivos** sobre volumen persistente, conforme a SUP-05. **No se accede a la base de datos**: es una decisión deliberada para no impactar su caudal.
+5. **[Feliz]** Al abrir la sesión de cada jornada los números de secuencia **se reinician**, conforme a RN-19. La persistencia tiene por lo tanto alcance **intra-jornada**: su objetivo es sobrevivir a un reinicio del proceso dentro del día, no dar continuidad entre días.
+5.1. **[Validación]** Al detectar que la jornada persistida es anterior a la actual, el conector descarta los valores y arranca en 1, en lugar de continuar desde el último número del día previo.
 6. **[Error]** Si la escritura de la secuencia falla, el conector no envía el mensaje y genera alerta: es preferible no enviar a enviar con una secuencia que no se puede recuperar.
 7. **[Validación]** La persistencia soporta el caudal de mensajes sin convertirse en el cuello de botella del procesamiento.
 
@@ -940,7 +949,7 @@ Criterios de aceptación:
 3. **[Feliz]** Un mensaje con `PossDupFlag=Y` se evalúa contra el registro antes de procesarse.
 4. **[Feliz]** La deduplicación cubre tanto el reenvío por FIX como la reentrega por MQ.
 5. **[Validación]** El registro de identificadores procesados sobrevive a un reinicio del proceso dentro de la jornada.
-6. **[Validación]** La ventana de deduplicación se acuerda con BBVA; la propuesta del PO es la jornada de negociación completa.
+6. **[Validación]** La ventana de deduplicación es la **jornada de negociación completa**, coherente con el reinicio diario de secuencias de RN-19.
 
 Escenarios BDD:
 
@@ -1258,11 +1267,11 @@ Definition of Done:
 Usuario Drop Copy creado, mapeo de cuentas confirmado por A3, cuenta de reMarkets creada en `remarkets.primary.ventures` y **conexión de prueba con recepción efectiva de un Execution Report duplicado**. ⚠️ Definir con el negocio el conjunto de cuentas es precondición: determina qué eventos verá el conector. **Bloquea `FIX-2.04`**
 
 Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
-"Task";"T-06";"Esquema de gestión del secret y procedimiento de credenciales";"Objetivo tecnico:
-Definir con seguridad de BBVA la estructura del secret y **documentar el procedimiento administrativo de actualización de contraseña**, que es fuera de banda conforme a `S-02`
+"Task";"T-06";"Integración con la API de credenciales del banco y procedimiento de actualización";"Objetivo tecnico:
+Relevar el contrato de la **API del banco que entrega las credenciales de A3** —endpoint, autenticación del conector contra ella, formato de respuesta, códigos de error, política de caché y comportamiento ante indisponibilidad— e implementar su consumo. Documentar además el procedimiento administrativo de actualización de contraseña, que es fuera de banda conforme a `S-02`
 
 Definition of Done:
-Secret de un único campo con la contraseña vigente, accesible en sólo lectura por el conector. Procedimiento documentado con los dos caminos: en reMarkets, solicitud al soporte de Primary; en producción, consola administrativa de Primary gestionada por la ALyC. Incluye el **runbook de salida del *hard stop*** de RN-18: actualizar credencial → cargar en el secret → acción manual de reanudación
+Contrato de la API relevado y consumido: el conector obtiene la credencial al abrir sesión y al reanudar tras *hard stop*, la mantiene sólo en memoria y nunca la persiste. Procedimiento documentado con los dos caminos de actualización: en reMarkets, solicitud al soporte de Primary; en producción, consola administrativa de Primary gestionada por la ALyC. Incluye el **runbook de salida del *hard stop*** de RN-18: actualizar credencial en el sistema del banco → acción manual de reanudación → el conector la relee de la API. ⚠️ **Dependencia de disponibilidad en el arranque:** definir el comportamiento si la API no responde a las 09:30. Ver `S-17`
 
 Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
 "Task";"T-07";"Relevamiento de códigos CNV y estructura de cuentas de BBVA";"Objetivo tecnico:
