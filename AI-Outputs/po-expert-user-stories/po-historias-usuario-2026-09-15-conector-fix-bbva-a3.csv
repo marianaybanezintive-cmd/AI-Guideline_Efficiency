@@ -123,7 +123,7 @@ Notas / preguntas abiertas:
 
 - **Pendiente de confirmar con el equipo técnico:** el valor de `HeartBtInt` a configurar debe acordarse con A3; el ROE sólo fija el mínimo de 10 segundos.
 - **Resuelto el 2026-09-16 (`S-03`): el reinicio de secuencias es diario.** El diseño deja de necesitar la configurabilidad prevista en SUP-14.
-- **Resuelto el 2026-09-16 (`S-02` y credenciales):** la actualización de la credencial tras un *hard stop* implica que un administrador la modifique en el sistema del banco —origen de la API de credenciales— tras gestionarla con Primary. El conector la vuelve a obtener de la API al reanudar, sin redespliegue. El procedimiento operativo se documenta en `T-06`.
+- **Resuelto el 2026-09-16 (`S-02` y credenciales):** la actualización de la credencial tras un *hard stop* implica que un administrador la modifique en el sistema del banco, que es el origen de la API de credenciales. En homologación el cambio se tramita manualmente; en producción lo gestiona BBVA. El conector la vuelve a obtener de la API al reanudar, sin redespliegue. El procedimiento operativo se documenta en `T-06`.
 - **Pendiente (`S-17`):** el contrato de la API de credenciales del banco —endpoint, autenticación del conector contra ella, formato de respuesta, códigos de error y política de caché— no está relevado. **Introduce una dependencia de disponibilidad en el arranque:** si la API no responde a las 09:30, no hay sesión.
 
 Chequeo INVEST:
@@ -316,7 +316,7 @@ Criterios de aceptación:
 1. **[Feliz]** El conector consume los `Execution Report` (`35=8`) recibidos de A3 y determina el evento a partir de la combinación de `ExecType` (150) y `OrdStatus` (39).
 2. **[Feliz]** El conector procesa las **seis variantes** que define el ROE de A3: *New* (`ExecType=0`), *Order Canceled Response* (`ExecType=4`), *Order Replaced Response* (`ExecType=5`), *Order Filled / Partially Filled Response* (`ExecType=F`, con `OrdStatus` 1 o 2), *Order Status Response* y *Reject Message Response*.
 2.1. **[Feliz]** El conector procesa los Execution Reports que llegan **no solicitados** por la sesión Drop Copy, que son la fuente principal del MVP conforme a RN-17, además de los que llegan como respuesta a sus propias consultas de `FIX-2.06`.
-2.2. **[Validación]** El conector **no asume que el `ClOrdID` (11) le pertenece**: fue generado por sistemas de terceros —terminales de Primary, sistemas propios de BBVA o plataformas DMA— conforme a RN-17. Lo trata como dato opaco de correlación, sin validar su formato ni asumir su unicidad dentro del espacio de identificadores del conector.
+2.2. **[Validación]** El conector **no asume que el `ClOrdID` (11) le pertenece**: fue generado por sistemas de terceros —terminales de sistemas propios de BBVA o plataformas DMA— conforme a RN-17. Lo trata como dato opaco de correlación, sin validar su formato ni asumir su unicidad dentro del espacio de identificadores del conector.
 2.3. **[Validación]** Cuando un Execution Report llega para una orden que el conector nunca vio antes —caso normal en Drop Copy—, se publica igualmente como evento válido. La ausencia de historia previa **no es un error**.
 3. **[Feliz]** El evento normalizado preserva `ClOrdID` (11), `OrigClOrdID` (41), `OrderID` (37), `ExecID` (17), `Account` (1), `Symbol` (55), `Side` (54), `OrdType` (40), `TimeInForce` (59), las cantidades `OrderQty`, `CumQty` (14), `LeavesQty` (151) y `LastQty` (32), los precios `Price` (44), `AvgPx` (6) y `LastPx` (31), y `TransactTime` (60).
 4. **[Feliz]** El mensaje publicado cumple el contrato acordado con arquitectura de BBVA en `T-03` y lleva el `correlation ID` conforme a RN-04, que permite reconstruir la cadena mensaje FIX *raw* → evento normalizado → mensaje MQ.
@@ -336,7 +336,7 @@ Característica: Publicación en MQ de los estados de orden informados por A3
 
   Escenario: Execution Report no solicitado de una orden originada en otro sistema
     Dado que la sesión Drop Copy está ""Conectada"" y asociada a las cuentas de BBVA
-    Y que un operador ingresó una orden desde una terminal de Primary
+    Y que un operador ingresó una orden desde un sistema externo al conector
     Cuando A3 duplica el Execution Report hacia la sesión del conector sin que este lo haya solicitado
     Entonces el conector lo publica como evento válido
     Y no lo trata como error pese a no tener historia previa de esa orden
@@ -387,7 +387,7 @@ Fuera de alcance:
 Notas / preguntas abiertas:
 
 - La estimación del Excel (3–5 SP) contempla una sola variante. Con las seis variantes del ROE, más la normalización y la deduplicación, corresponde re-estimar.
-- **Resuelto el 2026-09-16 (`S-01`):** el origen del tráfico es la sesión **FIX Drop Copy**. A3 asocia la sesión a un conjunto de IDs de cuentas o de operadores y duplica en tiempo real los Execution Reports de esas cuentas. En homologación, el tráfico se genera por inyección de órdenes de un tercero —soporte de Primary, o el propio equipo desde el Trader de reMarkets— sobre cuentas espejo mapeadas a la sesión.
+- **Resuelto el 2026-09-16 (`S-01`):** el origen del tráfico es la sesión **FIX Drop Copy**. A3 asocia la sesión a un conjunto de IDs de cuentas o de operadores y duplica en tiempo real los Execution Reports de esas cuentas. En homologación, el tráfico se genera por inyección de órdenes de un tercero sobre cuentas espejo mapeadas a la sesión.
 - **Pendiente de confirmar con el negocio:** el conjunto de cuentas y de operadores de BBVA que deben quedar asociados a la sesión Drop Copy. Es el insumo de `T-05` y condiciona qué eventos verá el conector.
 - **Pendiente de confirmar con el equipo técnico (`S-04`):** si el evento publicado necesita enriquecerse con datos del instrumento más allá del `Symbol`.
 
@@ -1271,7 +1271,7 @@ Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
 Relevar el contrato de la **API del banco que entrega las credenciales de A3** —endpoint, autenticación del conector contra ella, formato de respuesta, códigos de error, política de caché y comportamiento ante indisponibilidad— e implementar su consumo. Documentar además el procedimiento administrativo de actualización de contraseña, que es fuera de banda conforme a `S-02`
 
 Definition of Done:
-Contrato de la API relevado y consumido: el conector obtiene la credencial al abrir sesión y al reanudar tras *hard stop*, la mantiene sólo en memoria y nunca la persiste. Procedimiento documentado con los dos caminos de actualización: en reMarkets, solicitud al soporte de Primary; en producción, consola administrativa de Primary gestionada por la ALyC. Incluye el **runbook de salida del *hard stop*** de RN-18: actualizar credencial en el sistema del banco → acción manual de reanudación → el conector la relee de la API. ⚠️ **Dependencia de disponibilidad en el arranque:** definir el comportamiento si la API no responde a las 09:30. Ver `S-17`
+Contrato de la API relevado y consumido: el conector obtiene la credencial al abrir sesión y al reanudar tras *hard stop*, la mantiene sólo en memoria y nunca la persiste. Procedimiento documentado con los dos caminos de actualización: en homologación, tramitación manual del cambio; en producción, gestión a cargo de BBVA. Incluye el **runbook de salida del *hard stop*** de RN-18: actualizar credencial en el sistema del banco → acción manual de reanudación → el conector la relee de la API. ⚠️ **Dependencia de disponibilidad en el arranque:** definir el comportamiento si la API no responde a las 09:30. Ver `S-17`
 
 Trazabilidad input: sin origen en el Excel; entregable del plan de trabajo"
 "Task";"T-07";"Relevamiento de códigos CNV y estructura de cuentas de BBVA";"Objetivo tecnico:
