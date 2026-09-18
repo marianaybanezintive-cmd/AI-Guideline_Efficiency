@@ -478,7 +478,7 @@ Notas / preguntas abiertas:
 
 - **Esta historia no tenía ningún contenido en el backlog borrador.** Los criterios se derivaron del ROE de A3 y **quedan pendientes de validación funcional con los referentes de negocio de BBVA**.
 - **Resuelto el 2026-09-16 (`S-05`): sólo consulta, no hay suscripción.** El flujo de TCR es exclusivamente *pull*. Queda descartado todo diseño basado en recepción no solicitada de Trade Capture Reports.
-- **Resuelto el 2026-09-16 (`S-06`): consulta asincrónica a demanda, sin periodicidad fija.** Se descarta la propuesta de consulta programada al cierre de jornada: el conector **no planifica consultas por horario**, las emite cuando la necesidad se presenta. El criterio de disparo deja de ser temporal y pasa a ser por demanda. ✅ **Resuelto (`S-07`): la demanda la origina BBVA enviando un comando por MQ.** El disparador de esta historia es `FIX-2.15`.
+- **Resuelto el 2026-09-16 (`S-06`): consulta asincrónica a demanda, sin periodicidad fija.** Se descarta la propuesta de consulta programada al cierre de jornada: el conector **no planifica consultas por horario**, las emite cuando la necesidad se presenta. El criterio de disparo deja de ser temporal y pasa a ser por demanda. ✅ **Resuelto (`S-07`): el disparo lo decide el propio conector**, según su lógica configurable, sin cola de entrada desde BBVA. El MVP es puramente saliente hacia MQ (SUP-04): el conector emite el `35=AD` hacia A3 cuando corresponde y publica el resultado, sin recibir comandos.
 - **Pendiente de confirmar con A3 (`S-16`):** que el perfil Drop Copy de sólo lectura admita emitir `Trade Capture Report Request`. Si no lo admitiera, los TCR llegarían únicamente como eventos duplicados y esta historia se simplificaría a consumo pasivo.
 
 Chequeo INVEST:
@@ -569,7 +569,7 @@ Fuera de alcance:
 Notas / preguntas abiertas:
 
 - ⚠️ **Verificación necesaria en la Épica 1:** la sesión del MVP es un **perfil Drop Copy de sólo lectura** (RN-17). Hay que confirmar con A3 que ese perfil **admite emitir `Order Status Request` y `Order Mass Status Request`**. Ambos son de lectura, pero un perfil restringido podría no habilitarlos. Si A3 no los admite sobre Drop Copy, esta historia y la reconciliación de `FIX-2.07` necesitan rediseñarse sobre el flujo de eventos duplicados. Se agrega como `S-16`.
-- ✅ **Resuelto el 2026-09-16 (`S-07`): las consultas las dispara BBVA enviando un comando por MQ.** El disparador de esta historia es `FIX-2.15`. No hay planificador horario en el conector. Esta definición **supera SUP-04** e incorpora una cola de entrada al MVP, acotada a comandos de sólo lectura por RN-20.
+- ✅ **Resuelto el 2026-09-18 (`S-07`): las consultas las dispara el propio conector**, según su lógica configurable. **No hay cola de entrada en el MVP**: SUP-04 sigue vigente. La alternativa de que BBVA las dispare por MQ quedó **desestimada** y se tratará en la Épica 4, junto con el resto del sentido de entrada.
 
 Chequeo INVEST:
 
@@ -719,93 +719,6 @@ Chequeo INVEST:
 | I | N | V | E | S | T |
 |---|---|---|---|---|---|
 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |"
-"Story";"FIX-2.15";"Consumir desde MQ los comandos de consulta de BBVA";"Historia:
-
-```
-Como sistema consumidor de BBVA
-quiero solicitar por MQ una consulta de estado de órdenes o de operaciones concertadas
-para obtener del mercado la información en el momento en que la necesito, sin depender de una planificación fija del conector
-```
-
-Valor de negocio:
-
-Convierte al conector de un publicador autónomo en un servicio consultable. BBVA deja de esperar a que el conector decida cuándo consultar y pasa a pedir la información cuando su proceso la requiere, que es lo que significa «asincrónico a demanda».
-
-Escenarios fuente:
-
-> No hay escenarios en el input. **Esta historia es alcance nuevo**, surgido de la definición de `S-07`: las consultas las dispara BBVA enviando un comando por MQ. Esa definición **supera el supuesto SUP-04** («el MVP es puramente saliente»), que se mantiene sólo para las instrucciones de orden.
-
-Criterios de aceptación:
-
-1. **[Feliz]** El conector consume los comandos desde la cola de entrada definida en `T-03`.
-2. **[Feliz]** Soporta los cuatro tipos de comando del MVP: consulta de estado de una orden puntual, consulta masiva de estado, consulta de operaciones concertadas por cuenta y consulta de operaciones concertadas por símbolo.
-3. **[Feliz]** Cada comando se traduce al mensaje FIX correspondiente (`35=H`, `35=AF` o `35=AD`) conforme a `FIX-2.06` y `FIX-2.05`.
-4. **[Feliz]** El resultado se publica en la cola de salida **correlacionado con el identificador del comando**, de modo que el solicitante pueda vincular la respuesta con su pedido, conforme a RN-04.
-5. **[Feliz]** El comando recibido queda registrado en auditoría con su `correlation ID`, conforme a RN-03.
-6. **[Error]** Un comando con estructura inválida o campos obligatorios ausentes se rechaza, se deriva a la cola de error y se publica MSG-26: ""Comando de consulta inválido: {motivo}. Derivado a {colaError}.""
-7. **[Validación — crítica]** El conector **rechaza y alerta todo comando que no sea de consulta**, en particular cualquier intento de alta, modificación o cancelación de orden, conforme a RN-01 y RN-20, publicando MSG-27: ""Comando fuera del alcance del conector: {tipo}. El canal de entrada admite únicamente consultas de sólo lectura. Rechazado y registrado."" **La cola de entrada del MVP no es un camino de ruteo de órdenes.**
-8. **[Validación]** Un comando ya procesado —identificado por su ID de comando— no se vuelve a ejecutar ante *redelivery* de MQ, conforme a RN-05. Reejecutar una consulta masiva por un reenvío consumiría el cupo de caudal sin necesidad.
-9. **[Validación]** El conector aplica control de caudal conforme a RN-08: si llegan más comandos de consulta masiva que el límite de 1 por segundo de A3, los encola y registra MSG-18.
-10. **[Error]** Si la sesión FIX está caída o A3 rechaza la consulta, el conector responde con un evento de error **correlacionado con el comando**; nunca lo descarta en silencio, conforme a RN-11.
-
-Escenarios BDD:
-
-```gherkin
-Característica: Consumo de comandos de consulta desde MQ
-  Como sistema consumidor de BBVA quiero solicitar consultas por MQ
-  para obtener información del mercado en el momento en que la necesito.
-
-  Escenario: Comando de consulta masiva de estado
-    Dado que la sesión FIX está ""Conectada""
-    Cuando BBVA publica en la cola de entrada un comando de consulta masiva de estado con identificador ""CMD-3391""
-    Entonces el conector emite un Order Mass Status Request a A3
-    Y publica los estados recibidos correlacionados con el identificador ""CMD-3391""
-
-  Escenario: Comando de consulta de operaciones por cuenta
-    Cuando BBVA publica un comando de consulta de operaciones concertadas para una cuenta
-    Entonces el conector emite un Trade Capture Report Request por cuenta con TrdType 0
-    Y publica las operaciones recibidas correlacionadas con el comando
-
-  Escenario: Intento de enviar una orden por el canal de consultas
-    Cuando BBVA publica en la cola de entrada un comando de alta de orden
-    Entonces el conector no emite ningún mensaje FIX hacia A3
-    Y rechaza el comando publicando MSG-27: ""Comando fuera del alcance del conector: {tipo}. El canal de entrada admite únicamente consultas de sólo lectura. Rechazado y registrado.""
-    Y genera una alerta para el equipo de operaciones
-
-  Escenario: Comando inválido
-    Cuando BBVA publica un comando de consulta sin el identificador de cuenta obligatorio
-    Entonces el conector lo deriva a la cola de error
-    Y publica MSG-26: ""Comando de consulta inválido: {motivo}. Derivado a {colaError}.""
-
-  Escenario: Reentrega del mismo comando por MQ
-    Dado que el comando ""CMD-3391"" ya fue ejecutado
-    Cuando MQ lo reentrega por redelivery
-    Entonces el conector no vuelve a consultar a A3
-    Y registra MSG-12: ""Mensaje FIX duplicado descartado (secuencia {seq}, identificador {id}). No se publica en MQ.""
-
-  Escenario: Consulta solicitada con la sesión caída
-    Dado que la sesión FIX está ""Desconectada""
-    Cuando BBVA publica un comando de consulta masiva de estado
-    Entonces el conector responde con un evento de error correlacionado con el comando
-    Y el comando no se descarta en silencio
-```
-
-Fuera de alcance:
-
-- **Instrucciones de orden** (alta, modificación, cancelación): son `FIX-4.01` a `FIX-4.04`, Épica 4. El criterio 7 las rechaza explícitamente.
-- Suscripciones de market data solicitadas por MQ: Épica 5.
-
-Notas / preguntas abiertas:
-
-- **Esta historia es alcance nuevo respecto del backlog borrador y del plan de trabajo**, y **no está estimada**. Su incorporación debe reflejarse en la re-estimación de la Épica 2.
-- El criterio 7 es deliberado: abrir un canal de entrada en el MVP crea la tentación de usarlo como atajo para rutear órdenes antes de que existan la idempotencia de escritura y los controles de riesgo de la Épica 4. El rechazo explícito y alertado es el resguardo.
-- **Pendiente de definir con el negocio:** el catálogo concreto de comandos y sus parámetros, que se cierra junto con el contrato MQ en `T-03`.
-
-Chequeo INVEST:
-
-| I | N | V | E | S | T |
-|---|---|---|---|---|---|
-| ⚠️ Depende de `FIX-2.05` y `FIX-2.06` para entregar valor | ✅ | ✅ | ❌ **Sin estimar — alcance nuevo** | ✅ | ✅ |"
 "Task";"FIX-2.09";"Persistir los números de secuencia de la sesión";"Objetivo técnico:
 
 Almacenar los `MsgSeqNum` entrante y saliente de la sesión FIX de forma que sobrevivan a un reinicio del proceso, para poder continuar la sesión sin pérdida ni duplicación de mensajes.
@@ -1334,7 +1247,7 @@ El ambiente BBVA está operativo y validado con una conexión de prueba. **Ejecu
 
 Trazabilidad input: US 21"
 "Task";"T-03";"Definición de los contratos de mensajería MQ";"Objetivo tecnico:
-Acordar el contrato de **salida** (estados de orden, operaciones concertadas, estado de sesión, estado de mercado, errores) y el de **entrada** (catálogo de comandos de consulta y sus parámetros, según `S-07`). Incluye el formato del `correlation ID`, el catálogo §5 y el **bloque de instrumento opcional y versionado** de `R-13`
+Acordar el contrato de **salida** que el conector publica: estados de orden, operaciones concertadas, estado de sesión, estado de mercado y errores. **Sólo salida:** el MVP no consume de MQ (SUP-04). Incluye el formato del `correlation ID`, el catálogo §5 y el **bloque de instrumento opcional y versionado** de `R-13`
 
 Definition of Done:
 Contratos versionados y **aprobados por arquitectura de BBVA**. No cambian entre el fin de la Épica 1 y el fin de la Épica 3
