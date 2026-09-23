@@ -858,7 +858,7 @@ Característica: Obtención y publicación de operaciones concertadas en A3
 
 ---
 
-### FIX-2.06 — Consultar el estado de las órdenes en A3
+### FIX-2.06 -- FASE 2 -- Consultar el estado de las órdenes en A3  -- FASE 2 --
 
 | | |
 |---|---|
