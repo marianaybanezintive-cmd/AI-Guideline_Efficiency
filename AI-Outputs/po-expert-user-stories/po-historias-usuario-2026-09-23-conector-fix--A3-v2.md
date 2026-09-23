@@ -1,6 +1,6 @@
 ﻿# Historias de Usuario — Conector FIX ↔ A3 Mercados
 
-> **Versión:** v2.0.0 • **Fecha:** 2026-09-25
+> **Versión:** v2.0.0 • **Fecha:** 2026-09-23
 > **Fuente única de requerimientos:**
 > - `PRD-conector-fix-bbva-a3-fase1-2026-09-15.md` (PRD de Fase 1, elaborado por el PO)
 > - `ImplementacionFixBBVA_PropuestaTecnica_20260908 - DRAFT.docx` (propuesta técnica intive v2.0)
