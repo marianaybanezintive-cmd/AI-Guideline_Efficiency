@@ -1,6 +1,6 @@
 ﻿# PRD — Conector FIX ↔ A3 Mercados · Fase 1 (Épicas 1 a 3)
 
-> **Versión:** v2.0.0 · **Fecha:** 2026-09-25 · **Actualizado:** 2026-09-25 — Incorpora aclaraciones por las 13 historias faltantes elaboradas
+> **Versión:** v2.0.0 · **Fecha:** 2026-09-23 · **Actualizado:** 2026-09-23 — Incorpora aclaraciones por las 13 historias faltantes elaboradas
 > **Producto:** Conector FIX ↔ A3 Mercados
 > **Alcance de este documento:** Épicas 1 (Discovery, Arquitectura y Ambientes), 2 (MVP TCR/ER y Conectividad FIX) y 3 (Homologación A3 y Pruebas de Aceptación del cliente)
 > **Fecha límite comprometida:** 31-dic-2026
