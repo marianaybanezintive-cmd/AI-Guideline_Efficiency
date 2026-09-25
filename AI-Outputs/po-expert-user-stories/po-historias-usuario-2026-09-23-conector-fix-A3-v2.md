@@ -1,4 +1,4 @@
-﻿# Historias de Usuario — Conector FIX ↔ A3 Mercados
+# Historias de Usuario — Conector FIX ↔ A3 Mercados
 
 > **Versión:** v2.0.0 • **Fecha:** 2026-09-23
 > **Fuente única de requerimientos:**
@@ -432,6 +432,9 @@ Característica: Establecimiento de la sesión FIX con A3
 - **Resuelto el 2026-09-16 (`S-03`): el reinicio de secuencias es diario.** El diseño deja de necesitar la configurabilidad prevista en SUP-14.
 - **Resuelto el 2026-09-16 (`S-02` y credenciales):** la actualización de la credencial tras un *hard stop* implica que un administrador la modifique en el sistema del banco, que es el origen de la API de credenciales. En homologación el cambio se tramita manualmente; en producción lo gestiona el cliente. El conector la vuelve a obtener de la API al reanudar, sin redespliegue. El procedimiento operativo se documenta en `T-06`.
 - **Pendiente (`S-17`):** el contrato de la API de credenciales del banco —endpoint, autenticación del conector contra ella, formato de respuesta, códigos de error y política de caché— no está relevado. **Introduce una dependencia de disponibilidad en el arranque:** si la API no responde a las 09:30, no hay sesión.
+- **Aclaración técnica sobre TargetCompID y Logon (Origen: actualización de la documentación de A3 — ROE FIX 5.0 v2.0.53, abril 2025):**
+  - *Inconsistencia de TargetCompID en la documentación de A3:* En la página 7 (texto descriptivo de conexión), A3 indica que `TargetCompID` debe setearse en `"MatbaRofex"`, mientras que en la página 15 (tabla de Standard Message Header) y en el tag 1301 (`MarketID`), documenta el valor `"ROFX"`. Esto reafirma que `TargetCompID` debe ser 100% externalizable y configurable por ambiente sin depender de un valor estático en código.
+  - *Credenciales en Logon (`35=A`):* En la tabla de especificación de Logon (Pág. 19), los campos `Username` (553) y `Password` (554) figuran formalmente con `Req = N`. Sin embargo, para la autenticación del conector del cliente en el gateway de A3 son mandatorios conforme a la política operativa del mercado.
 
 #### Chequeo INVEST
 
@@ -849,6 +852,9 @@ Característica: Obtención y publicación de operaciones concertadas en A3
 - **Resuelto el 2026-09-16 (`S-05`): sólo consulta, no hay suscripción.** El flujo de TCR es exclusivamente *pull*. Queda descartado todo diseño basado en recepción no solicitada de Trade Capture Reports.
 - **Resuelto el 2026-09-16 (`S-06`): consulta asincrónica a demanda, sin periodicidad fija.** Se descarta la propuesta de consulta programada al cierre de jornada: el conector **no planifica consultas por horario**, las emite cuando la necesidad se presenta. El criterio de disparo deja de ser temporal y pasa a ser por demanda. ✅ **Resuelto (`S-07`): el disparo lo decide el propio conector**, según su lógica configurable, sin cola de entrada desde el cliente. El MVP es puramente saliente hacia MQ (SUP-04): el conector emite el `35=AD` hacia A3 cuando corresponde y publica el resultado, sin recibir comandos.
 - **Pendiente de confirmar con A3 (`S-16`):** que el perfil Drop Copy de sólo lectura admita emitir `Trade Capture Report Request`. Si no lo admitiera, los TCR llegarían únicamente como eventos duplicados y esta historia se simplificaría a consumo pasivo.
+- **Aclaración técnica sobre TCR y CPX (Origen: actualización de la documentación de A3 — ROE FIX 5.0 v2.0.53, abril 2025):**
+  - *Roles CNV en TCR por Cuenta (`35=AD`):* En el ROE v2.0.53 (Págs. 95–97), se ratifica que para la consulta de TCR por cuenta utilizada por mercados externos, el bloque `Parties` exige la estructura de 6 roles CNV: `1` (Executing Firm), `3` (Client ID), `4` (Clearing Firm), `12/Executing Trader`, `76` (Desk ID) y `24` (Customer Account), confirmando la precondición dura identificada.
+  - *Identificación de operaciones CPX en `35=AE`:* En el mensaje `TradeCaptureReport` (`35=AE`, Pág. 90), las operaciones concertadas en la fase CPX se identifican con el campo condicional `SecondaryTrdType` (tag 855) = `9` (*Prior Reference Price Trade*).
 
 #### Chequeo INVEST
 
@@ -1226,6 +1232,9 @@ Característica: Procesamiento de rechazos de nivel de sesión de A3
 
 - **El backlog borrador no contempla esta historia** pese a que A3 la evalúa explícitamente en la certificación. Ver §11 del documento maestro, observación 12.
 - Se recomienda implementar antes de `T-17` (ejecución de la homologación).
+- **Aclaración técnica sobre Session Reject Reason (Origen: actualización de la documentación de A3 — ROE FIX 5.0 v2.0.53, abril 2025):**
+  - En el ROE v2.0.53 (Págs. 23–24), el campo `SessionRejectReason` (tag 373) del mensaje `Reject` (`35=3`) define los valores del `0` al `17` y agrega explícitamente el código de escape **`99 = Other`**.
+  - El mapeo del conector debe incorporar el valor `99 = Other` para evitar que rechazos no catalogados bajo 0–17 se traten como desconocidos o generen fallas de procesamiento.
 
 #### Chequeo INVEST
 
@@ -1305,6 +1314,10 @@ Característica: Procesamiento de rechazos de negocio de A3
 #### Notas / preguntas abiertas
 
 - **Pendiente (`S-16`):** si el perfil Drop Copy no admite consultas (`35=H`, `35=AF`, `35=AD`), los `Business Message Reject` serán la respuesta de A3. Esta historia es necesaria **independientemente** de la resolución de `S-16`.
+- **Aclaración técnica sobre BusinessMessageReject (Origen: actualización de la documentación de A3 — ROE FIX 5.0 v2.0.53, abril 2025):**
+  - En el ROE v2.0.53 (Pág. 28), la especificación de A3 para el mensaje `BusinessMessageReject` (`35=j`) contiene **únicamente**: Header, `RefMsgType` (tag 372, Y), `BusinessRejectReason` (tag 380, Y), `Text` (tag 58, N) y Trailer.
+  - A3 **eliminó los campos `RefSeqNum` (tag 45) y `BusinessRejectRefID` (tag 379)** (registrado en el historial de revisiones del ROE).
+  - Por lo tanto, en producción con A3 el conector **no recibirá ni el tag 45 ni el tag 379** en un `35=j`. La correlación con la solicitud original no podrá realizarse por número de secuencia FIX entrante, debiendo gestionarse por el tipo de mensaje rechazado (`372`), el contexto operativo o considerarse como evento de notificación de error general sin binding estricto por secuencia.
 
 #### Chequeo INVEST
 
@@ -1392,6 +1405,13 @@ Característica: Consumo del estado de la sesión de negociación de A3
 
 - **Verificar con A3:** si el perfil Drop Copy recibe automáticamente los `Trading Session Status` o si hay que suscribirse.
 - La lista de fases puede ampliarse si A3 usa extensiones propias: confirmar contra el ambiente reMarkets.
+- **Aclaración técnica sobre TradingSessionStatus (Origen: actualización de la documentación de A3 — ROE FIX 5.0 v2.0.53, abril 2025):**
+  - En el ROE v2.0.53 (Págs. 30–31), A3 separó el mensaje `35=h` en dos variantes funcionales distintas (v2.0.42):
+    1. *Estado del segmento de mercado (Pág. 30):* Informa `MarketSegmentID` (1300) y `TradSesStatus` (340) con valores: `0 = Unknown`, `1 = Halted`, `2 = Open`, `3 = Closed`, `7 = Disabled`.
+    2. *Fase de la sesión de negociación (Pág. 31):* Las fases se informan en el campo **`TradingSessionSubID` (tag 625)** con los valores: `0 = Pre-Trading`, `1 = Trading`, `2 = Post-Trading`, `3 = After Hour`, `4 = Closed`, y **`8 = CPX`** (Rueda de precio de cierre). En este mensaje, `TradSesStatus` (340) va fijo en `0 = Unknown` y `MarketSegmentID` va como `[N/A]`.
+  - Por lo tanto, A3 **no envía las fases en `TradSesStatus` (tag 340)** con códigos 4, 5, 100 ni 101, sino en el **tag 625 (`TradingSessionSubID`)** con valores `0, 1, 2, 3, 4, 8`.
+  - El tag `TradSesStatusRejReason` (567) **no existe** en la especificación de `35=h` de A3.
+  - El código para la fase CPX es **`8`** (no `101`). El parser de `35=h` debe adaptarse para leer el tag 625 al evaluar las fases de negociación.
 
 #### Chequeo INVEST
 
@@ -1476,6 +1496,11 @@ Característica: Mantenimiento del catálogo de cuentas habilitadas
 
 - **Verificar con A3:** si los mensajes `UALT` y `UALI` están disponibles en el perfil Drop Copy o si son exclusivos de perfiles de trading.
 - El formato de estos mensajes es una extensión de A3, no del estándar FIX: confirmar estructura contra la documentación específica del ROE.
+- **Aclaración técnica sobre Catálogo de Cuentas (Origen: actualización de la documentación de A3 — ROE FIX 5.0 v2.0.53, abril 2025):**
+  - En el ROE v2.0.53 (Págs. 32–34), A3 define un mensaje explícito de solicitud: **`AccountListRequest` (`MsgType = UALR`)**, el cual permite pedir el catálogo para el usuario logueado mediante `AccountRequestID` (7110), `AccountListRequestType` (7111: 0=Account, 1=Account type, 2=All accounts) y `SubscriptionRequestType` (263: 0=Snapshot, 1=Subscribe/Updates, 2=Unsubscribe).
+  - Como respuesta a dicha solicitud, A3 envía `AccountList` (`MsgType = UALT`, Pág. 33) y las actualizaciones en `AccountListIncremental` (`MsgType = UALI`, Pág. 34).
+  - Los campos exactos del bloque de cuentas en A3 son: `7113 NoRelatedAcc`, `1 Account`, `7128 AccountDescription` (incorporado en v2.0.52), `448 PartyID` (Identity of A3 Agent), `581 AccountType`, `7121 PersonID`, `1048 DealingCapacity` (A=Agent, P=Principal, R=Riskless Principal en UALI), `7114 AccountAlias`, `7125 AccountRiskCheck`, y en `UALI` se incluye el grupo `Block MarketAlias` (`7122 NoMarketAlias`, `1300 MarketSegmentID`, `7123 MarketAliasName`).
+  - Se debe contemplar la emisión activa de `UALR` al iniciar la jornada si A3 no entrega el catálogo de forma no solicitada.
 
 #### Chequeo INVEST
 
@@ -1639,6 +1664,12 @@ Característica: Publicación de avisos de mercado de A3
 
 - Procesamiento semántico del contenido del aviso (interpretar si afecta a un instrumento específico).
 - Mensajes de tipo `Email` (`35=C`): se evalúan en una iteración futura.
+
+#### Notas / preguntas abiertas
+
+- **Aclaración técnica sobre News (Origen: actualización de la documentación de A3 — ROE FIX 5.0 v2.0.53, abril 2025):**
+  - En el ROE v2.0.53 (Pág. 27), el mensaje `News` (`35=B`) incluye el campo condicional **`URLLink` (tag 149)** como URI/URL a información adicional (ej. `http://www.primary.com/research.html`), además de definir `MarketSegmentID` (tag 1300) como campo obligatorio (`Req = Y`).
+  - Se debe contemplar la extracción opcional de `URLLink` (149) para enriquecer el evento de aviso de mercado publicado en MQ si el mensaje de A3 lo contiene.
 
 #### Chequeo INVEST
 
@@ -2299,6 +2330,11 @@ Característica: Configuración externalizada por ambiente
 | Archivo de configuración no encontrado | El conector no arranca; alerta |
 | Parámetro obligatorio faltante | MSG-37; el conector no arranca |
 | Valor fuera de rango | MSG-37 con detalle de la restricción; el conector no arranca |
+
+#### Notas / preguntas abiertas
+
+- **Aclaración técnica sobre parámetros de CompID (Origen: actualización de la documentación de A3 — ROE FIX 5.0 v2.0.53, abril 2025):**
+  - La documentación oficial de A3 presenta una inconsistencia interna respecto de `TargetCompID`: en la página 7 (texto descriptivo) indica `"MatbaRofex"`, mientras que en la página 15 (tabla de Standard Message Header) y en el tag 1301 (`MarketID`) documenta el valor `"ROFX"`. Esto ratifica la necesidad técnica de externalizar completamente `TargetCompID` y los parámetros de CompID por ambiente sin fijar valores rígidos en el código.
 
 ---
 
