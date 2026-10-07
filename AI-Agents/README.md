@@ -8,6 +8,7 @@ Cada subcarpeta es un **agente** usable desde Cursor (skill) o desde la línea d
 |--------|-------------|
 | [sprint-health-check](sprint-health-check/) | Validación de salud del sprint en curso (Jira) |
 | [po-expert-user-stories](po-expert-user-stories/) | Product Owner: épicas y documentos de negocio → historias detalladas (MD + CSV) |
+| [po-prd-generator](po-prd-generator/) | SR Product Owner: cualquier documento → PRD .md de análisis inicial (14 secciones fijas, corte de MVP, RF/RNF, riesgos, plan, DoD) |
 | [jira-load-user-stories](jira-load-user-stories/) | SM/PO: carga en Jira las historias del MD de po-expert (tras validación manual) |
 | [jira-stories-to-architecture](jira-stories-to-architecture/) | Historias Jira → paquete de arquitectura (C4, ER, APIs, Mermaid + PNG) |
 | [po-architect-agent](po-architect-agent/) | Alex: persona PO + Arquitecto SR con menú; delega en jira-stories-to-architecture |
