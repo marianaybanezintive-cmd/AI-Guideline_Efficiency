@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Extrae texto de documentos (pdf, docx, xlsx, pptx, md, txt, csv, json, html)
-a archivos .txt UTF-8 en una carpeta de trabajo, para que el agente los lea por
-tramos sin cargar el binario ni imprimir el contenido en consola.
+a archivos .txt UTF-8 (+ .outline.txt con títulos y números de línea) en una
+carpeta de trabajo, para que el agente los lea por tramos sin cargar el binario
+ni imprimir el contenido en consola.
 
 Uso: python extract_docs.py <archivo> [<archivo> ...] [--out DIR]
-Salida (stdout): una línea por documento -> ruta_txt | caracteres | unidades.
+Salida (stdout): una línea por documento -> ruta_txt | chars | unidades | outline.
 """
 import argparse
 import re
@@ -15,8 +16,22 @@ from pathlib import Path
 PLAIN = {".md", ".txt", ".csv", ".json", ".html", ".htm", ".xml", ".yml", ".yaml"}
 
 
+OUTLINE = re.compile(
+    r"^(#{1,4} \S|=== (Página|Hoja|Slide)"
+    r"|\d{1,2}(\.\d{1,2}){1,3}\.?\s+[A-ZÁÉÍÓÚÑ]"
+    r"|\d{1,2}\.\s+[A-ZÁÉÍÓÚÑ][^.*?¿:]{2,70}$"
+    r"|[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9 ,/()-]{4,}$)")
+
+
 def clean(text: str) -> str:
     return text.encode("utf-8", "replace").decode("utf-8", "replace")
+
+
+def outline(text: str) -> str:
+    """Líneas de título/página/hoja con su número de línea, para leer por offset."""
+    rows = [f"{n}: {line.strip()[:100]}" for n, line in enumerate(text.splitlines(), 1)
+            if len(line.strip()) <= 120 and OUTLINE.match(line.strip())]
+    return "\n".join(rows)
 
 
 def pdf_text(path):
@@ -122,9 +137,12 @@ def main():
             print(f"ERROR | {name} | {type(exc).__name__}: {exc}")
             rc = 1
             continue
+        text = clean(text)
         dest = out_dir / f"{src.stem}.txt"
-        dest.write_text(clean(text), encoding="utf-8")
-        print(f"{dest} | {len(text)} chars | {units}")
+        dest.write_text(text, encoding="utf-8")
+        toc = outline(text)
+        (out_dir / f"{src.stem}.outline.txt").write_text(toc, encoding="utf-8")
+        print(f"{dest} | {len(text)} chars | {units} | outline: {toc.count(chr(10)) + bool(toc)} líneas")
     return rc
 
 

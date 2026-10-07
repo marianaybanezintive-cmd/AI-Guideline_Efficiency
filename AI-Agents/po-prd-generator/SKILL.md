@@ -17,18 +17,14 @@ insumo del refinamiento posterior con `po-expert-user-stories`.
 
 ## Reglas duras
 
-1. **Estructura 100% fija.** Todo PRD sigue [references/prd-template.md](references/prd-template.md):
-   mismas 14 secciones (+ `1.bis`), numeración, títulos, tablas y orden. Solo se
-   reemplaza lo marcado `⟦…⟧`. Nada se omite ni se renumera: sin insumo → `No aplica — <motivo>`
-   o pregunta en §12.1.
-2. **Fidelidad al input.** Cifras, fechas, nombres y límites salen de las fuentes (citadas).
-   Lo que no dice el input es un supuesto `⏳ a validar` registrado en §12.1; nunca un hecho.
-3. **El corte se justifica.** Criterio binario y verificable (efecto, riesgo, valor), con
-   tres preguntas de decisión y argumentos de por qué no es arbitrario.
-4. **Sin vicios de anonimización.** Nombre real del cliente y del producto, nunca restos
-   como «hacial cliente».
-5. **Español**; el documento es neutro, las interacciones con el usuario usan voseo.
-6. **Cierre en chat = resumen + ruta + conteos.** Jamás volcar el PRD en el chat.
+1. **Estructura 100% fija:** la define [references/prd-template.md](references/prd-template.md)
+   (reglas de uso al inicio de ese archivo).
+2. **Criterio de PO** (corte, IDs, fidelidad, supuestos `⏳`, anonimización):
+   [references/prd-guidance.md](references/prd-guidance.md).
+3. **Sin pausas:** lo ambiguo se resuelve con un supuesto marcado y una S-nn en §12.1.
+   Lo que el usuario indique al invocar (alcance, fecha, épicas) manda sobre lo inferido.
+4. **Español**; el documento es neutro, las interacciones con el usuario usan voseo.
+5. **Cierre en chat = resumen + ruta + conteos.** Jamás volcar el PRD en el chat.
 
 ## Flujo
 
@@ -41,24 +37,21 @@ Extraer cada binario a texto, una sola vez:
 python AI-Agents/po-prd-generator/scripts/extract_docs.py <archivo> [<archivo> ...]
 ```
 
-Imprime `ruta_txt | chars | unidades` por documento. Leer los `.txt` por tramos
-(documentos largos: índice primero, luego Grep de lo relevante); no volcar a consola.
+Por documento genera `<nombre>.txt` y `<nombre>.outline.txt` (títulos, páginas y hojas
+con número de línea). Leer primero el outline y después solo los tramos relevantes del
+`.txt` con offset/limit o Grep; nunca el `.txt` completo de un documento largo.
 
 ### Paso 2 — Análisis
 
-Leer [references/prd-guidance.md](references/prd-guidance.md) (criterio de corte, IDs,
-fidelidad, criterio por sección). Inventariar con fuente: producto, cliente, objetivo,
-fecha límite, alcance, actores, sistemas, restricciones, backlog, riesgos y
-contradicciones entre documentos. El usuario puede indicar alcance, fecha o épicas al
-invocar: eso manda sobre lo inferido. **Sin pausas:** lo ambiguo se resuelve con un
-supuesto marcado y una S-nn en §12.1.
+Leer `prd-guidance.md` una vez y aplicar su §1 (inventario con fuente) sobre los textos.
 
 ### Paso 3 — Redacción
 
-Escribir `AI-Outputs/prd/PRD-{slug}-{AAAA-MM-DD}.md` (slug en minúsculas con guiones).
-Redactar en 3 bloques para no truncar: cabecera + §1–5, §6–9, §10–14. Versión `v1.0.0`;
-si se actualiza un PRD previo, aplicar la sección «Actualizar» de la guía y guardar como
-archivo nuevo, sin pisar el anterior.
+Leer `prd-template.md` una vez, justo antes de escribir. Crear
+`AI-Outputs/prd/PRD-{slug}-{AAAA-MM-DD}.md` (slug en minúsculas con guiones) en 3
+bloques para no truncar: cabecera + §1–5, §6–9, §10–14. Versión `v1.0.0`.
+Si se actualiza un PRD previo: copiarlo al archivo nuevo y **editar solo las secciones
+afectadas** (guía §6); no regenerarlo completo.
 
 ### Paso 4 — Validación (bloqueante)
 
@@ -66,8 +59,8 @@ archivo nuevo, sin pisar el anterior.
 python AI-Agents/po-prd-generator/scripts/validate_prd.py AI-Outputs/prd/PRD-{slug}-{fecha}.md
 ```
 
-Comprueba secciones, orden, subsecciones, tablas, TOC, placeholders `⟦` y anonimización,
-e imprime los conteos. Con `FAIL`: corregir y re-ejecutar hasta `PASS`.
+Con `FAIL`: corregir **solo** las líneas o secciones señaladas (edición puntual, no
+reescritura) y re-ejecutar hasta `PASS`.
 
 ### Paso 5 — Cierre
 
@@ -84,7 +77,6 @@ Solo el PRD generado; sin archivos temporales de extracción.
 
 ## Checklist de cierre
 
-- [ ] Se leyó la plantilla y la guía en esta corrida
+- [ ] Plantilla y guía leídas una vez cada una, en el paso indicado
 - [ ] El validador devolvió `PASS`
-- [ ] Todo supuesto está marcado `⏳` y registrado en §12.1
 - [ ] El chat contiene resumen + ruta + conteos, no el PRD

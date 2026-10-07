@@ -28,7 +28,7 @@ lo dudoso queda como decisión abierta (§12.1) marcada `⏳`.
 | `SKILL.md` | Rol, reglas duras y flujo |
 | `references/prd-template.md` | Esqueleto de las 14 secciones (fuente de verdad de la estructura) |
 | `references/prd-guidance.md` | Criterio de PO: regla de corte, IDs, fidelidad, calidad |
-| `scripts/extract_docs.py` | PDF/DOCX/XLSX/PPTX → `.txt` UTF-8 en carpeta temporal |
+| `scripts/extract_docs.py` | PDF/DOCX/XLSX/PPTX → `.txt` UTF-8 + `.outline.txt` (índice con nº de línea) en carpeta temporal |
 | `scripts/validate_prd.py` | Valida estructura contra la plantilla y cuenta OBJ/RF/RNF/H/O/S/R |
 
 Dependencias de los scripts: `pypdf`, `python-docx`, `openpyxl` (y `python-pptx` para `.pptx`).

@@ -71,11 +71,11 @@ en §1.bis). Referencias cruzadas con anclas Markdown (`[S-02](#12-riesgos-…)`
 
 Incrementar versión (major = cambia el corte; minor = nuevas definiciones o alcance),
 completar «Actualizado», agregar la ronda en §1.bis, marcar S-nn resueltas, no renumerar
-IDs. Guardar como archivo nuevo con la fecha del día; no pisar el anterior.
+IDs. Guardar como archivo nuevo con la fecha del día (copia del anterior editada por
+secciones); no pisar el anterior.
 
 ## 7. Chequeo final de calidad
 
 - ¿Todo RF cae del lado correcto del corte de §5?
 - ¿Cada H-n tiene decisión asociada y cada S-nn tiene propuesta accionable?
 - ¿§14 verifica todos los OBJ-n? ¿Los supuestos ⏳ están en §12.1?
-- ¿Cero `⟦` y cero typos de anonimización? (lo comprueba `validate_prd.py`)
