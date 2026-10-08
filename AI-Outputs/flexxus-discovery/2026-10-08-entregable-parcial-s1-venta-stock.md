@@ -105,32 +105,201 @@ Las fricciones confirmadas requieren las sesiones con referentes de negocio. Hip
 
 El menú principal (`frmPrincipal.dfm`) tiene 12 solapas: Inicio, Archivos, **Ventas**, Compras, Fondos, Contabilidad, RMA, **Stock**, Producción, Calidad, RR.HH. e Informes. El código tiene 978 formularios (sin contar residuos de merge) y 115 unidades de lógica. Las 94 opciones de Venta abren 58 formularios distintos y las 34 de Stock, 27; las demás abren diálogos o planillas genéricas. El mapa completo opción → formulario está en el [Anexo A](#anexo-a--mapa-de-opciones-de-menú-a-formularios).
 
-| Solapa | Grupo de menú | Opciones | Ejemplos |
+**Resumen por grupo de menú**
+
+| Solapa | Grupo de menú | Opciones | Épica |
 |---|---|---|---|
-| Ventas | Comprobantes › Facturación | 17 | Factura, factura manual, facturación de pedidos y de remitos, NC, ND, solicitud de NC, débito interno, liquidación de granos |
-| Ventas | Comprobantes › Impresora fiscal | 5 | Cierre X, cierre Z, control de numeración |
-| Ventas | Comprobantes › Facturación electrónica | 1 | Facturación electrónica |
-| Ventas | Comprobantes › Facturación masiva | 2 | Facturación masiva, lotes |
-| Ventas | Comprobantes › Notas de pedido | 8 | Pedido, planilla, pendientes por cliente y por pedido, salida, anulación, autorización |
-| Ventas | Comprobantes › Presupuestos | 3 | Presupuesto, planilla, anulación |
-| Ventas | Comprobantes › Remitos | 10 | Remito, remito manual, por devolución, internos, expedición, remito electrónico ARBA |
-| Ventas | Comprobantes › Otros | 12 | Carta de porte, guía de reparto, ticket, garantías, contrarreembolso, cierres Z |
-| Ventas | Comprobantes › Consulta | 5 | Consulta, numeración, anulación, anulación por numeración |
-| Ventas | Cuentas corrientes | 11 | Cuenta corriente, movimientos, cobros, intereses, cobranza masiva |
-| Ventas | Precios y bonificaciones | 9 | Precios, consulta por forma de pago, lista editable, bonificaciones, promociones |
-| Ventas | Vendedores | 5 | Comisiones, períodos, premios |
-| Ventas | Fidelización de clientes | 4 | Premios, puntos, coeficientes |
-| Ventas | Ventas no realizadas | 2 | Nueva VNR, costo de oportunidad |
+| Ventas | Comprobantes › Facturación | 17 | 1 (granos y líquido producto: 2) |
+| Ventas | Comprobantes › Facturación › Impresora fiscal | 5 | ⏳ S-11 |
+| Ventas | Comprobantes › Facturación electrónica | 1 | 1 |
+| Ventas | Comprobantes › Facturación masiva | 2 | 2 |
+| Ventas | Comprobantes › Notas de pedido | 8 | 1 (salida de pedidos: 2) |
+| Ventas | Comprobantes › Presupuestos | 3 | 1 |
+| Ventas | Comprobantes › Remitos | 10 | 1 (internos, expedición y ARBA: 2) |
+| Ventas | Comprobantes › Otros | 12 | Ticket: 1; resto: 2 |
+| Ventas | Comprobantes › Consulta | 5 | 1 |
+| Ventas | Cuentas corrientes | 11 | Validación al vender: 1; gestión: fuera de la etapa |
+| Ventas | Precios y bonificaciones | 9 | Consultas: 1; administración: 2 |
+| Ventas | Vendedores | 5 | 2 |
+| Ventas | Fidelización de clientes | 4 | 2 (los puntos se calculan en el comprobante: 1) |
+| Ventas | Ventas no realizadas | 2 | 2 |
 | **Ventas** | **Total** | **94** | |
-| Stock | Correcciones de stock | 3 | Nuevo ajuste, planilla, despachos de aduana |
-| Stock | Consulta de movimientos | 7 | Listado general y por depósito, histórico, series, distribuciones |
-| Stock | Transferencias entre depósitos | 9 | Remito de salida, de entrada, manual, automático, movimientos internos, consumo interno |
-| Stock | Inventarios | 8 | Toma, actualización, carga de cantidades, carga desde archivo |
-| Stock | Análisis de stock | 3 | Rotación, optimización mínimo/máximo, diferencias |
-| Stock | Transformaciones | 3 | Estructura de producto, movimiento de producción |
-| Stock | Reparto | 1 | Confirmación de entrega |
+| Stock | Correcciones de stock | 3 | 2 |
+| Stock | Consulta de movimientos | 7 | Listados de stock: 1; resto: 2 |
+| Stock | Transferencias entre depósitos | 9 | 2 |
+| Stock | Inventarios | 8 | 2 |
+| Stock | Análisis de stock | 3 | 2 |
+| Stock | Transformaciones | 3 | 2 |
+| Stock | Reparto | 1 | 2 |
 | **Stock** | **Total** | **34** | |
-| Archivos | Artículos / Depósitos | 17 / 5 | Maestros que consumen Venta y Stock |
+| Archivos | Artículos / Depósitos | 17 / 5 | 2 (maestros que lee el MVP) |
+
+**Detalle de opciones.** La descripción funcional se deduce del nombre de la opción, del formulario que abre (Anexo A), del código y de las notas de release. Las marcadas con ⏳ son interpretaciones a confirmar con el referente de negocio.
+
+#### Solapa Ventas (94 opciones)
+
+| Grupo | Opción | Para qué se usa principalmente |
+|---|---|---|
+| Comprobantes › Facturación | Factura | Emitir la factura de venta (contado o cuenta corriente) con cobro, efecto en stock y remito automático según los parámetros 52 y 154 |
+| Comprobantes › Facturación | Factura Manual | Registrar una factura emitida fuera del sistema (talonario manual) cargando su numeración |
+| Comprobantes › Facturación | Facturación de Pedidos | Seleccionar notas de pedido pendientes y facturarlas, total o parcialmente |
+| Comprobantes › Facturación | Facturación de Remitos | Facturar en forma automática remitos de venta ya entregados y pendientes de facturar |
+| Comprobantes › Facturación | Solicitud Nota de Crédito | Pedir una NC (devolución o bonificación) para que la apruebe un usuario autorizado antes de emitirla |
+| Comprobantes › Facturación | Planilla Solicitud Nota de Créditos | Consultar y aprobar o rechazar las solicitudes de NC pendientes |
+| Comprobantes › Facturación | ABM Motivos | Mantener los motivos que justifican una NC, una ND o una solicitud |
+| Comprobantes › Facturación | Nota de Crédito | Emitir la NC vinculada a una o más facturas, con reingreso de stock si corresponde |
+| Comprobantes › Facturación | Nota de Crédito Manual | Registrar una NC emitida fuera del sistema |
+| Comprobantes › Facturación | Planilla de Notas de Crédito | Consultar las NC emitidas, filtrar, reimprimir y exportar |
+| Comprobantes › Facturación | Nota de Débito | Emitir una ND al cliente (intereses, diferencias de precio o de cambio, gastos) |
+| Comprobantes › Facturación | Nota de Débito Manual | Registrar una ND emitida fuera del sistema |
+| Comprobantes › Facturación | Planilla de Notas de Débito | Consultar las ND emitidas |
+| Comprobantes › Facturación | Débito Interno | Cargar un débito en la cuenta corriente del cliente sin comprobante fiscal ⏳ |
+| Comprobantes › Facturación | Líquido Producto | Emitir la liquidación al comitente en la venta por cuenta y orden de terceros (consignación) ⏳ |
+| Comprobantes › Facturación | Estados de Comprobantes | Mantener los estados que puede tomar un comprobante en su circuito (por ejemplo, pendiente, autorizado, entregado) |
+| Comprobantes › Facturación | Liquidación Primaria de Granos | Emitir la liquidación primaria de granos del vertical agro |
+| Comprobantes › Facturación › Impresora fiscal | Cierre X (Cajero) | Emitir el informe parcial del controlador fiscal por cajero o turno, sin cerrar la jornada |
+| Comprobantes › Facturación › Impresora fiscal | Cierre Z (Diario) | Cerrar la jornada fiscal del controlador, con su informe diario obligatorio |
+| Comprobantes › Facturación › Impresora fiscal | Controlar Numeración del Controlador Fiscal | Comparar la numeración del controlador con la del sistema y detectar saltos |
+| Comprobantes › Facturación › Impresora fiscal | Abrir Cajón | Abrir el cajón de dinero conectado al controlador fiscal |
+| Comprobantes › Facturación › Impresora fiscal | Reimpresión Cierre Z | Volver a imprimir un cierre Z ya emitido |
+| Comprobantes › Facturación electrónica | Facturación Electrónica | Gestionar los comprobantes electrónicos ante AFIP/ARCA: solicitud y reintento de CAE y estado de cada comprobante ⏳ |
+| Comprobantes › Facturación masiva | Facturación Masiva | Generar en un solo proceso las facturas de un lote de clientes (abonos, cuotas, servicios periódicos) |
+| Comprobantes › Facturación masiva | Lotes de Facturación | Armar y mantener los lotes de clientes y conceptos que usa la facturación masiva |
+| Comprobantes › Notas de pedido | Pedido | Cargar la nota de pedido del cliente: compromete stock, fija fecha de entrega y admite anticipo |
+| Comprobantes › Notas de pedido | Planilla de Notas de Pedido | Consultar los pedidos y su estado (pendiente, parcial, facturado) y operar sobre ellos |
+| Comprobantes › Notas de pedido | Artículos Pendientes Por Cliente | Ver qué artículos pedidos falta entregar o facturar, agrupados por cliente |
+| Comprobantes › Notas de pedido | Artículos Pendientes Por Pedidos | Ver los artículos pendientes de cada pedido |
+| Comprobantes › Notas de pedido | ABM Operaciones | Mantener los tipos de operación que clasifican los pedidos ⏳ |
+| Comprobantes › Notas de pedido | Salida de Pedidos | Registrar la preparación y salida de mercadería de los pedidos desde el depósito |
+| Comprobantes › Notas de pedido | Anulación de Pedidos | Anular una nota de pedido y liberar el stock que comprometía |
+| Comprobantes › Notas de pedido | Planilla Autorización Pedidos | Autorizar los pedidos retenidos (por ejemplo, por crédito o por precio) antes de que se preparen o facturen |
+| Comprobantes › Presupuestos | Presupuesto | Emitir una cotización al cliente, sin efecto fiscal ni de stock, con vencimiento |
+| Comprobantes › Presupuestos | Planilla de Presupuestos | Consultar los presupuestos y convertirlos en pedido o factura |
+| Comprobantes › Presupuestos | Anulación de Presupuestos | Anular presupuestos vencidos o rechazados |
+| Comprobantes › Remitos | Remito | Emitir el remito de entrega de la venta, que descuenta stock cuando la factura no lo hace (parámetro 82) |
+| Comprobantes › Remitos | Remito Manual | Registrar un remito emitido fuera del sistema |
+| Comprobantes › Remitos | Remito por Devolución de Mercaderías | Registrar la mercadería que devuelve el cliente y reingresarla al stock |
+| Comprobantes › Remitos | Planilla de Remitos | Consultar los remitos emitidos y su estado de facturación |
+| Comprobantes › Remitos | Planilla de Expedición | Organizar los remitos a despachar y su salida física |
+| Comprobantes › Remitos | Remito Interno | Mover mercadería sin venta (préstamo, muestra, envío a sucursal) con efecto en stock |
+| Comprobantes › Remitos | Remito Interno Manual | Registrar un remito interno emitido fuera del sistema |
+| Comprobantes › Remitos | Remito Interno por Devolución de Mercaderías | Reingresar la mercadería que vuelve de un remito interno |
+| Comprobantes › Remitos | Planilla de Remitos Internos | Consultar los remitos internos |
+| Comprobantes › Remitos | Remito Electrónico (ARBA) | Generar el COT de ARBA para el traslado de mercadería en la provincia de Buenos Aires |
+| Comprobantes › Otros | Carta de Porte | Emitir la carta de porte para el transporte de granos |
+| Comprobantes › Otros | Planilla de Cartas de Porte | Consultar las cartas de porte emitidas |
+| Comprobantes › Otros | Guía de Reparto | Armar el recorrido del reparto propio con los comprobantes a entregar |
+| Comprobantes › Otros | Planilla de Guías de Reparto | Consultar las guías de reparto y su estado |
+| Comprobantes › Otros | Ticket | Emitir un ticket de venta rápida de mostrador (controlador fiscal o consumidor final) |
+| Comprobantes › Otros | Planilla de Tickets | Consultar los tickets emitidos |
+| Comprobantes › Otros | Garantía de Artículos | Registrar la garantía de un artículo vendido (número de serie, plazo) |
+| Comprobantes › Otros | Planilla de Garantías de Artículos | Consultar las garantías vigentes y vencidas |
+| Comprobantes › Otros | ABM Estado ContraReembolso | Mantener los estados de las ventas con cobro contra entrega |
+| Comprobantes › Otros | Planilla ContraReembolsos | Seguir las ventas contra reembolso hasta su cobro |
+| Comprobantes › Otros | Gestión Cierres Z | Registrar y consultar los cierres Z de cada controlador fiscal |
+| Comprobantes › Otros | Planilla de Tickets de Cambio | Consultar los tickets de cambio que habilitan cambiar un producto en otro momento ⏳ |
+| Comprobantes › Consulta | Consulta | Buscar cualquier comprobante de venta del cliente, verlo, reimprimirlo y enviarlo |
+| Comprobantes › Consulta | Numeración de Comprobantes | Configurar la numeración por tipo de comprobante y punto de venta |
+| Comprobantes › Consulta | Modificación Masiva de Numeración | Corregir en bloque la numeración de comprobantes |
+| Comprobantes › Consulta | Anulación | Anular un comprobante de venta y revertir sus efectos en stock y cuenta corriente |
+| Comprobantes › Consulta | Anulación Por Numeración | Anular un rango de números de comprobante (por ejemplo, formularios inutilizados) |
+| Cuentas corrientes | Cuenta Corriente | Consultar la cuenta corriente del cliente y registrar cobros imputados a sus comprobantes |
+| Cuentas corrientes | Movimientos | Listar los movimientos de cuenta corriente de uno o varios clientes |
+| Cuentas corrientes | Saldos al Inicio | Cargar los saldos iniciales de los clientes en la implantación |
+| Cuentas corrientes | Planilla de Cobros | Consultar los recibos de cobro emitidos |
+| Cuentas corrientes | Modificación de Imputaciones | Cambiar a qué comprobantes se aplicó un cobro |
+| Cuentas corrientes | Deudas Totales | Ver la deuda total y vencida por cliente |
+| Cuentas corrientes | Generación de Intereses | Calcular los intereses por mora y generar sus notas de débito |
+| Cuentas corrientes | Importación de Cobros | Importar cobros desde un archivo (bancos, empresas de cobranza) |
+| Cuentas corrientes | Cobranza Masiva de Documentos | Cobrar en bloque documentos de financiación propia |
+| Cuentas corrientes | ABM Variables | Definir las variables (consultas) que usan las fórmulas de límite de crédito |
+| Cuentas corrientes | ABM Fórmulas Predefinidas | Definir las fórmulas que calculan el límite de crédito de los clientes |
+| Precios y bonificaciones | Precios | Consultar el precio de los artículos por lista, con stock y precio con o sin IVA |
+| Precios y bonificaciones | Consultas de Precio por Forma de Pago | Ver el precio final según la forma de pago y el plan de cuotas de tarjeta |
+| Precios y bonificaciones | Planilla de Artículos sin Cambios de Precio | Detectar los artículos con el precio desactualizado |
+| Precios y bonificaciones | Planilla de Últimos Precios de Venta | Ver a qué precio se vendió por última vez cada artículo, por cliente |
+| Precios y bonificaciones | Lista de Precios Editable | Modificar en bloque los precios y márgenes de las listas |
+| Precios y bonificaciones | Impresión de Códigos de Barra | Imprimir etiquetas con código de barras y precio |
+| Precios y bonificaciones | Bonificaciones | Consultar y mantener las bonificaciones por cliente y artículo |
+| Precios y bonificaciones | Modificación Masiva de Bonificaciones | Cambiar en bloque las bonificaciones de varios clientes o artículos |
+| Precios y bonificaciones | Lista de Precios de Artículos en Promoción | Listar los artículos con una promoción vigente y su precio promocional |
+| Vendedores | Comisiones | Liquidar las comisiones de los vendedores de un período |
+| Vendedores | Períodos de Liquidación | Definir los períodos en los que se liquidan las comisiones |
+| Vendedores | Planilla de Premios por Artículos | Consultar los premios o comisiones asignados por artículo |
+| Vendedores | Premios | Consultar los premios o comisiones por vendedor |
+| Vendedores | Planilla Comisiones | Consultar las comisiones ya liquidadas y pagadas |
+| Fidelización de clientes | Asignación de Premios | Canjear los puntos acumulados de un cliente por premios |
+| Fidelización de clientes | Premios | Mantener el catálogo de premios canjeables |
+| Fidelización de clientes | Puntos | Modificar en bloque los puntos que otorga cada artículo |
+| Fidelización de clientes | Configuración de Coeficientes | Definir los coeficientes que convierten el importe de la compra en puntos |
+| Ventas no realizadas | Nueva VNR | Registrar una venta perdida (falta de stock, precio, plazo) para medir la demanda insatisfecha |
+| Ventas no realizadas | Análisis Costo Oportunidad | Analizar las ventas no realizadas y su impacto económico |
+
+#### Solapa Stock (34 opciones)
+
+| Grupo | Opción | Para qué se usa principalmente |
+|---|---|---|
+| Correcciones de stock | Despachos de Aduana | Asignar o corregir el despacho de importación asociado al stock de un artículo |
+| Correcciones de stock | Planilla de Ajustes | Consultar los ajustes manuales de stock realizados |
+| Correcciones de stock | Nuevo Ajuste | Registrar un ajuste de stock positivo o negativo con su motivo |
+| Consulta de movimientos | Seguimiento de Números de Serie | Rastrear un número de serie: ingreso, venta, devolución y depósito actual |
+| Consulta de movimientos | Listado General | Listar el stock real y remanente de los artículos de toda la empresa |
+| Consulta de movimientos | Listado por Depósito | Listar el stock por depósito y casillero, con su remanente |
+| Consulta de movimientos | Histórico de Artículos | Ver todos los movimientos históricos de un artículo con su comprobante de origen |
+| Consulta de movimientos | Seguimiento de Stock por Depósito | Seguir los movimientos de stock de un depósito en un período |
+| Consulta de movimientos | Planilla de Distribuciones | Consultar las distribuciones de mercadería entre sucursales o depósitos |
+| Consulta de movimientos | Capacidad Centro de Distribución | Definir y controlar la capacidad de los centros de distribución |
+| Transferencias entre depósitos | Remito de Salida | Emitir el remito que saca mercadería de un depósito hacia otro |
+| Transferencias entre depósitos | Remito de Transferencia Manual | Registrar una transferencia emitida fuera del sistema |
+| Transferencias entre depósitos | Generación Automática de Remito de Transferencia | Generar las transferencias necesarias para reponer depósitos a partir de un criterio (por ejemplo, stock mínimo) ⏳ |
+| Transferencias entre depósitos | Remito de Entrada | Recibir en el depósito de destino la mercadería de un remito de salida |
+| Transferencias entre depósitos | Movimiento Interno | Mover stock entre casilleros de un mismo depósito |
+| Transferencias entre depósitos | Planilla de Movimientos Internos | Consultar los movimientos entre casilleros |
+| Transferencias entre depósitos | Anulación de Movimientos Internos | Anular un movimiento interno y revertir su efecto |
+| Transferencias entre depósitos | Distribución de Mercadería | Repartir mercadería de un depósito central entre varias sucursales |
+| Transferencias entre depósitos | Consumo Interno de Materiales | Dar de baja stock consumido por la propia empresa |
+| Inventarios | Inventario | Emitir el inventario valorizado del stock a una fecha ⏳ |
+| Inventarios | Toma de Inventarios | Generar una toma de inventario (artículos y depósitos a contar) |
+| Inventarios | Actualización de Toma de Inventarios | Aplicar al stock las diferencias de una toma ya contada |
+| Inventarios | Cargar Cantidades | Cargar las cantidades contadas de una toma |
+| Inventarios | Planilla de Inventarios | Consultar las tomas de inventario y su estado |
+| Inventarios | Carga de Inventario desde Archivo | Importar el conteo desde un archivo o un colector de datos |
+| Inventarios | Bienes de Uso | Consultar el inventario de bienes de uso de la empresa |
+| Inventarios | Carga Toma de Inventarios | Cargar el conteo de una toma por otra vía (por ejemplo, escáner) ⏳ |
+| Análisis de stock | Análisis de Diferencias | Analizar las diferencias de stock detectadas en las tomas |
+| Análisis de stock | Análisis de Rotación | Medir la rotación de los artículos para detectar los de baja salida |
+| Análisis de stock | Optimización de Stock | Calcular stock mínimo, máximo y óptimo por artículo y depósito |
+| Transformaciones | Estructura de Producto | Definir qué componentes forman un artículo compuesto o elaborado |
+| Transformaciones | Movimiento de Producción | Registrar la transformación: consume componentes y da de alta el producto |
+| Transformaciones | Planilla de Movimientos | Consultar los movimientos de producción o transformación |
+| Reparto | Confirmación de Entrega | Confirmar que el cliente recibió la mercadería de un remito o una guía de reparto |
+
+#### Solapa Archivos — maestros que consume Venta y Stock (22 opciones)
+
+| Grupo | Opción | Para qué se usa principalmente |
+|---|---|---|
+| Artículos | Artículos | Alta, baja y modificación del artículo: códigos, precios, impuestos, control de stock, talles, lotes y series |
+| Artículos | Rubros | Mantener los rubros que clasifican los artículos |
+| Artículos | Marcas | Mantener las marcas de los artículos |
+| Artículos | Familias | Mantener las familias de artículos (usadas en precios, promociones y comisiones) |
+| Artículos | Bultos | Definir los bultos o presentaciones en que se mueve un artículo |
+| Artículos | Bienes de Uso | Mantener los bienes de uso de la empresa |
+| Artículos | Piezas Alternativas | Definir grupos de artículos equivalentes que se ofrecen cuando falta uno |
+| Artículos | Unidades de Medida | Mantener las unidades de medida |
+| Artículos | Posiciones Arancelarias | Mantener las posiciones arancelarias de importación y exportación |
+| Artículos | Grupos de Talles | Definir las curvas de talles y colores |
+| Artículos | Planilla Descripciones Adicionales | Mantener descripciones extendidas de los artículos |
+| Artículos | Modificación Masiva de Artículos | Cambiar datos de muchos artículos a la vez |
+| Artículos | Empaques | Definir los empaques de venta de un artículo (por ejemplo, caja por 12) |
+| Artículos | Conversión de Unidades | Definir equivalencias entre unidades de medida de un artículo |
+| Artículos | ABM Artículos Transformación | Definir los artículos que intervienen en las transformaciones |
+| Artículos | Grupos de Familias | Agrupar familias para reportes y reglas |
+| Artículos | Características | Definir atributos adicionales de los artículos |
+| Depósitos | Casilleros | Mantener las ubicaciones (casilleros) dentro de cada depósito, donde se guarda el stock |
+| Depósitos | Depósitos | Alta y configuración de los depósitos de la empresa |
+| Depósitos | Sub Depósitos | Dividir un depósito en sectores |
+| Depósitos | Depósitos Externos | Registrar depósitos de terceros (consignación, logística tercerizada) |
+| Depósitos | Centros de distribución | Definir los centros de distribución que abastecen a las sucursales |
 
 Además hay unas 20 acciones de Venta y Stock fuera de categoría: picking, packing, preparación de mercadería, hojas de ruta, cierres de stock, antigüedad de stock, motivos de ajuste, acopios, reglas de precio, políticas de redondeo y promociones.
 
